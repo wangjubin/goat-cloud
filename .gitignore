@@ -1,0 +1,15 @@
+*.iml
+.idea/
+.vscode/
+
+**/target/
+**/node_modules/
+**/dist/
+**/.vite/
+
+node_modules/
+package-lock.json
+package.json
+test-ui.js
+
+CLAUDE.md

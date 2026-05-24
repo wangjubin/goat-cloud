@@ -1,0 +1,17 @@
+package com.goat.cloud.module.ai.model.vo;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * @author wangjubin
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class AiChatMessage {
+
+    private String role;
+    private String content;
+}

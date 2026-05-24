@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.goat.cloud</groupId>
+        <artifactId>goat-cloud</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>goat-common</artifactId>
+    <packaging>pom</packaging>
+    <name>goat-common</name>
+
+    <modules>
+        <module>goat-common-bom</module>
+        <module>goat-common-core</module>
+        <module>goat-common-datasource</module>
+        <module>goat-common-log</module>
+        <module>goat-common-oss</module>
+        <module>goat-common-mybatis</module>
+        <module>goat-common-seata</module>
+        <module>goat-common-websocket</module>
+        <module>goat-common-security</module>
+        <module>goat-common-swagger</module>
+        <module>goat-common-feign</module>
+        <module>goat-common-xss</module>
+    </modules>
+</project>

@@ -1,0 +1,138 @@
+:root {
+  color-scheme: light;
+  --tc-bg: #f5f7fa;
+  --tc-surface: #ffffff;
+  --tc-text: #303133;
+  --tc-subtle: #909399;
+  --tc-border: #ebeef5;
+  --tc-primary: #409eff;
+  --tc-primary-soft: #ecf5ff;
+  --tc-danger: #f56c6c;
+  --tc-menu-bg: #001529;
+  --tc-menu-sub: #000c17;
+  --tc-menu-text: #bfcbd9;
+  --tc-menu-active: #409eff;
+  --tc-top-height: 50px;
+  --tc-tags-height: 34px;
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--tc-bg);
+  color: var(--tc-text);
+}
+
+#app {
+  min-height: 100vh;
+}
+
+.page-card {
+  background: var(--tc-surface);
+  border: 1px solid var(--tc-border);
+  border-radius: 4px;
+  padding: 15px;
+  box-shadow: none;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.toolbar h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.toolbar p {
+  margin: 6px 0 0;
+  color: var(--tc-subtle);
+  font-size: 13px;
+}
+
+.search-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--tc-border);
+}
+
+.search-form .el-input,
+.search-form .el-select {
+  width: 210px;
+}
+
+.layout-padding {
+  padding: 12px;
+}
+
+.layout-padding-auto {
+  min-height: calc(100vh - var(--tc-top-height) - var(--tc-tags-height) - 24px);
+}
+
+.layout-padding-view {
+  background: #fff;
+  border: 1px solid var(--tc-border);
+  border-radius: 4px;
+  padding: 15px;
+}
+
+.table-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.table-toolbar__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.table-toolbar__title::before {
+  content: "";
+  width: 3px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--tc-primary);
+}
+
+.el-table {
+  font-size: 13px;
+}
+
+.el-table th.el-table__cell {
+  background: #f5f7fa !important;
+  color: #606266;
+  font-weight: 600;
+}
+
+.el-button {
+  border-radius: 3px;
+}
+
+.el-input__wrapper {
+  border-radius: 3px;
+}
+
+.status-tag {
+  min-width: 58px;
+  justify-content: center;
+}

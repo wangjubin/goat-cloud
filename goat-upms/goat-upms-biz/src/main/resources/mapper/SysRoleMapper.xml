@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.goat.cloud.module.system.mapper.SysRoleMapper">
+
+    <select id="selectRolePage" resultType="com.goat.cloud.module.system.model.vo.RolePageVO">
+        select role_id,
+               role_code,
+               role_name,
+               data_scope,
+               status,
+               remark
+        from sys_role
+        where deleted = 0
+        <if test="query.roleCode != null and query.roleCode != ''">
+          and role_code like concat('%', #{query.roleCode}, '%')
+        </if>
+        <if test="query.roleName != null and query.roleName != ''">
+          and role_name like concat('%', #{query.roleName}, '%')
+        </if>
+        <if test="query.status != null">
+          and status = #{query.status}
+        </if>
+        order by role_id desc
+    </select>
+
+    <select id="selectByUserId" resultType="com.goat.cloud.module.system.entity.SysRole">
+        select r.*
+        from sys_role r
+                 inner join sys_user_role ur on ur.role_id = r.role_id and ur.deleted = 0
+        where ur.user_id = #{userId}
+          and r.deleted = 0
+          and r.status = 'ENABLED'
+    </select>
+
+</mapper>

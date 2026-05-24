@@ -1,0 +1,25 @@
+select setval(pg_get_serial_sequence('sys_dept', 'dept_id'), greatest(coalesce((select max(dept_id) from sys_dept), 0), 1), true);
+select setval(pg_get_serial_sequence('sys_role', 'role_id'), greatest(coalesce((select max(role_id) from sys_role), 0), 1), true);
+select setval(pg_get_serial_sequence('sys_user', 'user_id'), greatest(coalesce((select max(user_id) from sys_user), 0), 1), true);
+select setval(pg_get_serial_sequence('sys_menu', 'menu_id'), greatest(coalesce((select max(menu_id) from sys_menu), 0), 1), true);
+select setval(pg_get_serial_sequence('sys_user_role', 'id'), greatest(coalesce((select max(id) from sys_user_role), 0), 1), true);
+select setval(pg_get_serial_sequence('sys_role_menu', 'id'), greatest(coalesce((select max(id) from sys_role_menu), 0), 1), true);
+select setval(pg_get_serial_sequence('sys_role_dept', 'id'), greatest(coalesce((select max(id) from sys_role_dept), 0), 1), true);
+select setval(pg_get_serial_sequence('sys_login_log', 'log_id'), greatest(coalesce((select max(log_id) from sys_login_log), 0), 1), true);
+select setval(pg_get_serial_sequence('sys_operation_log', 'log_id'), greatest(coalesce((select max(log_id) from sys_operation_log), 0), 1), true);
+
+select setval(pg_get_serial_sequence('ai_model_config', 'model_id'), greatest(coalesce((select max(model_id) from ai_model_config), 0), 1), true);
+select setval(pg_get_serial_sequence('ai_vector_config', 'vector_config_id'), greatest(coalesce((select max(vector_config_id) from ai_vector_config), 0), 1), true);
+select setval(pg_get_serial_sequence('ai_prompt_template', 'prompt_id'), greatest(coalesce((select max(prompt_id) from ai_prompt_template), 0), 1), true);
+select setval(pg_get_serial_sequence('ai_billing_record', 'billing_id'), greatest(coalesce((select max(billing_id) from ai_billing_record), 0), 1), true);
+select setval(pg_get_serial_sequence('ai_knowledge_base', 'knowledge_base_id'), greatest(coalesce((select max(knowledge_base_id) from ai_knowledge_base), 0), 1), true);
+select setval(pg_get_serial_sequence('ai_document', 'document_id'), greatest(coalesce((select max(document_id) from ai_document), 0), 1), true);
+select setval(pg_get_serial_sequence('ai_document_chunk', 'chunk_id'), greatest(coalesce((select max(chunk_id) from ai_document_chunk), 0), 1), true);
+select setval(pg_get_serial_sequence('ai_mcp_tool', 'mcp_tool_id'), greatest(coalesce((select max(mcp_tool_id) from ai_mcp_tool), 0), 1), true);
+select setval(pg_get_serial_sequence('ai_api_skill', 'api_skill_id'), greatest(coalesce((select max(api_skill_id) from ai_api_skill), 0), 1), true);
+select setval(pg_get_serial_sequence('ai_chatbi_datasource', 'datasource_id'), greatest(coalesce((select max(datasource_id) from ai_chatbi_datasource), 0), 1), true);
+select setval(pg_get_serial_sequence('ai_chatbi_table', 'table_id'), greatest(coalesce((select max(table_id) from ai_chatbi_table), 0), 1), true);
+select setval(pg_get_serial_sequence('ai_chatbi_dataset', 'dataset_id'), greatest(coalesce((select max(dataset_id) from ai_chatbi_dataset), 0), 1), true);
+select setval(pg_get_serial_sequence('ai_chatbi_term', 'term_id'), greatest(coalesce((select max(term_id) from ai_chatbi_term), 0), 1), true);
+select setval(pg_get_serial_sequence('ai_agent', 'agent_id'), greatest(coalesce((select max(agent_id) from ai_agent), 0), 1), true);
+select setval(pg_get_serial_sequence('ai_workflow', 'workflow_id'), greatest(coalesce((select max(workflow_id) from ai_workflow), 0), 1), true);
