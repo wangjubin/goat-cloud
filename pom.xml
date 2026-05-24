@@ -18,13 +18,13 @@
     <name>goat-cloud</name>
 
     <modules>
-        <module>goat-boot</module>
-        <module>goat-auth</module>
-        <module>goat-common</module>
-        <module>goat-register</module>
-        <module>goat-gateway</module>
-        <module>goat-upms</module>
-        <module>goat-visual</module>
+        <module>backend/goat-boot</module>
+        <module>backend/goat-auth</module>
+        <module>backend/goat-common</module>
+        <module>backend/goat-register</module>
+        <module>backend/goat-gateway</module>
+        <module>backend/goat-upms</module>
+        <module>backend/goat-visual</module>
     </modules>
 
     <properties>
