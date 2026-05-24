@@ -183,6 +183,8 @@ const datasourceId = ref<number>()
 const datasources = ref<Array<{ datasourceId: number; datasourceName: string }>>([])
 const chartRefs = ref<Map<number, HTMLElement>>(new Map())
 const chartInstances = ref<echarts.ECharts[]>([])
+const resizeObservers: ResizeObserver[] = []
+let abortController: AbortController | null = null
 
 const quickQuestions = [
   '查询用户总数',
@@ -233,7 +235,12 @@ function viewHistory(h: HistoryItem) {
 }
 
 onBeforeUnmount(() => {
+  abortController?.abort()
+  resizeObservers.forEach(ro => ro.disconnect())
+  resizeObservers.length = 0
   chartInstances.value.forEach(c => c.dispose())
+  chartInstances.value = []
+  chartRefs.value.clear()
 })
 
 function setChartRef(idx: number, el: any) {
@@ -268,6 +275,7 @@ async function sendMessage() {
   scrollToBottom()
 
   try {
+    abortController = new AbortController()
     await chatBiStreamFetch(
       {
         question,
@@ -278,7 +286,8 @@ async function sendMessage() {
         assistantMsg.loading = false
         assistantMsg.error = `连接失败: ${error}`
         loading.value = false
-      }
+      },
+      abortController.signal
     )
   } catch (e: any) {
     assistantMsg.loading = false

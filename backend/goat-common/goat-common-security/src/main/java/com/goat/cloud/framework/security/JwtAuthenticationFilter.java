@@ -1,5 +1,6 @@
 package com.goat.cloud.framework.security;
 
+import com.goat.cloud.common.api.ApiResponse;
 import com.goat.cloud.common.enums.CommonStatus;
 import com.goat.cloud.framework.config.SecurityProperties;
 import io.jsonwebtoken.Claims;
@@ -9,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -16,7 +18,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -32,6 +37,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtTokenProvider jwtTokenProvider;
     private final SessionService sessionService;
     private final SecurityProperties securityProperties;
+    private final ObjectMapper objectMapper;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -73,6 +79,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SecurityContextHolder.getContext().setAuthentication(authentication);
         } catch (Exception ex) {
             SecurityContextHolder.clearContext();
+            // Token 存在但解析失败 → 返回 401，不继续 filter chain
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+            try {
+                response.getWriter().write(objectMapper.writeValueAsString(
+                        ApiResponse.fail(4010, "Invalid or expired token")));
+            } catch (IOException ignored) {
+            }
+            return;
         }
 
         filterChain.doFilter(request, response);

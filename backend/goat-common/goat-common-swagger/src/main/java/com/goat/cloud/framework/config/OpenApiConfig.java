@@ -14,8 +14,8 @@ public class OpenApiConfig {
     @Bean
     public OpenAPI goatOpenApi() {
         return new OpenAPI().info(new Info()
-                .title("Techen Cloud API")
+                .title("Goat Cloud API")
                 .version("1.0.0")
-                .description("Techen Cloud base management platform API"));
+                .description("Goat Cloud AI Platform API"));
     }
 }

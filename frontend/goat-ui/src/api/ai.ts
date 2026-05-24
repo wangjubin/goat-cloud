@@ -129,7 +129,8 @@ export function chatBiStream(request: ChatBiRequest): EventSource | null {
 export async function chatBiStreamFetch(
   request: ChatBiRequest,
   onEvent: (event: string, data: Record<string, unknown>) => void,
-  onError?: (error: string) => void
+  onError?: (error: string) => void,
+  signal?: AbortSignal
 ) {
   const token = localStorage.getItem('access_token') || ''
   const response = await fetch('/api/ai/chatbi/chat/stream', {
@@ -139,6 +140,7 @@ export async function chatBiStreamFetch(
       'Authorization': `Bearer ${token}`,
     },
     body: JSON.stringify(request),
+    signal,
   })
 
   if (!response.ok) {

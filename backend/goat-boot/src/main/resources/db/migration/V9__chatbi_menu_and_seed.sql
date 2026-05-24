@@ -3,13 +3,13 @@
 -- ============================================
 
 -- 1. 添加 ChatBI 对话菜单
-INSERT INTO sys_menu (menu_id, parent_id, menu_name, menu_type, path, component, permission, icon, sort_order, visible, keep_alive, external_link, status, remark, create_by, create_time, update_by, update_time, deleted)
+INSERT INTO sys_menu (menu_id, parent_id, menu_name, menu_type, route_path, component_path, permission_code, icon, sort_no, visible, keep_alive, external_link, status, remark, create_by, create_time, update_by, update_time, deleted)
 ON CONFLICT (menu_id) DO UPDATE SET
   menu_name = EXCLUDED.menu_name,
-  path = EXCLUDED.path,
-  component = EXCLUDED.component,
-  permission = EXCLUDED.permission,
-  sort_order = EXCLUDED.sort_order,
+  route_path = EXCLUDED.route_path,
+  component_path = EXCLUDED.component_path,
+  permission_code = EXCLUDED.permission_code,
+  sort_no = EXCLUDED.sort_no,
   status = EXCLUDED.status
 VALUES
     (236, 230, '智能问数', 'MENU', '/ai/ask/chat', 'ai/ask/chat/index', 'ai:ask:chat:view', 'ChatDotRound', 236, true, true, false, 'ENABLED', 'ChatBI 智能问数对话', 0, CURRENT_TIMESTAMP, 0, CURRENT_TIMESTAMP, 0),
@@ -17,9 +17,11 @@ VALUES
 
 -- 2. 为 admin 角色授权新菜单
 INSERT INTO sys_role_menu (role_id, menu_id, create_by, create_time)
-ON CONFLICT DO NOTHING
-VALUES (1, 236, 0, CURRENT_TIMESTAMP),
-       (1, 237, 0, CURRENT_TIMESTAMP);
+SELECT 1, 236, 0, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 236);
+INSERT INTO sys_role_menu (role_id, menu_id, create_by, create_time)
+SELECT 1, 237, 0, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 237);
 
 -- 3. 创建默认 StateGraph（chatbi_default）
 INSERT INTO ai_stategraph (graph_code, graph_name, description, version, definition_json, config_json, status, create_by, create_time, update_by, update_time, deleted)

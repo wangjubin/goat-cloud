@@ -82,4 +82,4 @@ node .\scripts\frontend-smoke.mjs
 - username: `admin`
 - password: `Admin@123456`
 - role: `SYSTEM_ADMIN`
-- dept: `Techen Cloud`
+- dept: `Goat Cloud`

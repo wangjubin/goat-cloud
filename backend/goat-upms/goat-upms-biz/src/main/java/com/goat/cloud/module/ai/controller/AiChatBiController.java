@@ -6,6 +6,9 @@ import com.goat.cloud.module.ai.entity.AiStateSession;
 import com.goat.cloud.module.ai.service.stategraph.StateExecutionEngine;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -17,6 +20,8 @@ import java.io.PrintWriter;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * ChatBI 智能问数控制器
@@ -42,6 +47,8 @@ public class AiChatBiController {
 
     private static final long SSE_TIMEOUT_MS = 120_000;
     private static final long HEARTBEAT_INTERVAL_MS = 15_000;
+    private static final int MAX_SSE_PER_USER = 3;
+    private final ConcurrentHashMap<Long, AtomicInteger> activeSseConnections = new ConcurrentHashMap<>();
 
     /**
      * 流式对话（SSE）
@@ -55,8 +62,17 @@ public class AiChatBiController {
      * - 心跳保活
      */
     @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public void chatStream(@RequestBody ChatRequest request, HttpServletResponse response) throws IOException {
+    public void chatStream(@RequestBody @Valid ChatRequest request, HttpServletResponse response) throws IOException {
         Long userId = CurrentUserHolder.require().getUserId();
+        // SSE 连接数限制
+        AtomicInteger connCount = activeSseConnections.computeIfAbsent(userId, k -> new AtomicInteger(0));
+        if (connCount.incrementAndGet() > MAX_SSE_PER_USER) {
+            connCount.decrementAndGet();
+            response.setStatus(429);
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            response.getWriter().write("{\"code\":429,\"message\":\"Too many concurrent connections\"}");
+            return;
+        }
         configureSseResponse(response);
         PrintWriter writer = response.getWriter();
         AtomicBoolean clientConnected = new AtomicBoolean(true);
@@ -100,6 +116,7 @@ public class AiChatBiController {
             sendSse(writer, "error", Map.of("message", "执行被中断"));
         } finally {
             clientConnected.set(false);
+            connCount.decrementAndGet();
             heartbeatExecutor.shutdownNow();
             workflowExecutor.shutdownNow();
             try {
@@ -114,7 +131,7 @@ public class AiChatBiController {
      * 非流式对话（直接返回完整结果）
      */
     @PostMapping("/chat")
-    public ApiResponse<AiStateSession> chat(@RequestBody ChatRequest request) {
+    public ApiResponse<AiStateSession> chat(@RequestBody @Valid ChatRequest request) {
         Long userId = CurrentUserHolder.require().getUserId();
         AiStateSession session = executionEngine.startSession(
                 request.graphCode() != null ? request.graphCode() : "chatbi_default",
@@ -128,10 +145,12 @@ public class AiChatBiController {
      * 恢复中断的会话（人工反馈后继续）
      */
     @PostMapping("/chat/resume")
-    public ApiResponse<AiStateSession> resumeSession(@RequestBody ResumeRequest request) {
+    public ApiResponse<AiStateSession> resumeSession(@RequestBody @Valid ResumeRequest request) {
         Long userId = CurrentUserHolder.require().getUserId();
-        AiStateSession session = executionEngine.resumeSession(request.runId(), request.feedback());
-        return ApiResponse.success(session);
+        AiStateSession session = executionEngine.getSession(request.runId());
+        validateSessionOwnership(session, userId);
+        AiStateSession resumed = executionEngine.resumeSession(request.runId(), request.feedback());
+        return ApiResponse.success(resumed);
     }
 
     /**
@@ -139,7 +158,10 @@ public class AiChatBiController {
      */
     @GetMapping("/chat/session/{runId}")
     public ApiResponse<AiStateSession> getSession(@PathVariable String runId) {
-        return ApiResponse.success(executionEngine.getSession(runId));
+        Long userId = CurrentUserHolder.require().getUserId();
+        AiStateSession session = executionEngine.getSession(runId);
+        validateSessionOwnership(session, userId);
+        return ApiResponse.success(session);
     }
 
     /**
@@ -147,6 +169,9 @@ public class AiChatBiController {
      */
     @PostMapping("/chat/cancel/{runId}")
     public ApiResponse<Void> cancelSession(@PathVariable String runId) {
+        Long userId = CurrentUserHolder.require().getUserId();
+        AiStateSession session = executionEngine.getSession(runId);
+        validateSessionOwnership(session, userId);
         executionEngine.cancelSession(runId);
         return ApiResponse.success();
     }
@@ -156,7 +181,17 @@ public class AiChatBiController {
      */
     @GetMapping("/chat/traces/{sessionId}")
     public ApiResponse<Object> getTraces(@PathVariable Long sessionId) {
+        Long userId = CurrentUserHolder.require().getUserId();
+        AiStateSession session = executionEngine.getSessionById(sessionId);
+        validateSessionOwnership(session, userId);
         return ApiResponse.success(executionEngine.getSessionTraces(sessionId));
+    }
+
+    private void validateSessionOwnership(AiStateSession session, Long userId) {
+        if (session == null) return;
+        if (!userId.equals(session.getUserId())) {
+            throw new com.goat.cloud.common.exception.BusinessException(4030, "无权访问此会话");
+        }
     }
 
     // ========== Helpers ==========

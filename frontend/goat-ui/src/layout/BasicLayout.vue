@@ -3,7 +3,7 @@
     <aside class="layout-aside">
       <div class="layout-logo">
         <span class="layout-logo-mark">T</span>
-        <span class="layout-logo-title">Techen Cloud</span>
+        <span class="layout-logo-title">Goat Cloud</span>
       </div>
       <el-scrollbar class="layout-menu-scroll">
         <el-menu

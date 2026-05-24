@@ -9,12 +9,12 @@ spring:
   datasource:
     driver-class-name: org.postgresql.Driver
     url: jdbc:postgresql://localhost:5432/goat_cloud
-    username: postgres
-    password: postgres
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
       database: 0
   flyway:
     enabled: true
@@ -36,12 +36,15 @@ mybatis-plus:
 
 goat:
   security:
-    jwt-secret: goat-boot-please-change-this-secret-2026
+    jwt-secret: ${JWT_SECRET:please-change-this-secret-in-production-32chars!}
     access-token-minutes: 30
     refresh-token-days: 7
     token-prefix: "Bearer "
     header-name: Authorization
-    initial-password: Admin@123456
+    initial-password: ${INITIAL_PASSWORD:Admin@123456}
+  ai:
+    encryption:
+      master-key: ${AES_MASTER_KEY:please-change-aes-master-key-32ch!}
 
 springdoc:
   swagger-ui:

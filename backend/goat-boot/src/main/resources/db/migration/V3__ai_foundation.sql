@@ -375,7 +375,7 @@ where doc.deleted = 0
   );
 
 insert into ai_mcp_tool (tool_code, tool_name, server_name, transport_type, endpoint, input_schema, output_schema, status, remark)
-values ('knowledge-search', '知识库检索工具', 'techen-mcp', 'stdio', null, '{"query":"string"}', '{"chunks":"array"}', 'ENABLED', '用于 AI 助手检索知识库')
+values ('knowledge-search', '知识库检索工具', 'goat-mcp', 'stdio', null, '{"query":"string"}', '{"chunks":"array"}', 'ENABLED', '用于 AI 助手检索知识库')
 on conflict do nothing;
 
 insert into ai_api_skill (skill_code, skill_name, skill_type, endpoint, http_method, auth_type, request_schema, response_schema, status, remark)

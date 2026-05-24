@@ -159,7 +159,7 @@ public class AiRuntimeService {
         AiModelConfig model = resolveModel(safeRequest);
         String provider = firstText(safeRequest.getProvider(), model == null ? null : model.getProvider(), "local-runtime");
         String modelCode = firstText(safeRequest.getModelCode(), model == null ? null : model.getModelCode(), "local-rules");
-        String systemPrompt = firstText(safeRequest.getSystemPrompt(), "You are Techen Cloud enterprise AI assistant. Answer with concise, grounded reasoning.");
+        String systemPrompt = firstText(safeRequest.getSystemPrompt(), "You are Goat Cloud enterprise AI assistant. Answer with concise, grounded reasoning.");
 
         RagSearchResponse rag = null;
         if (StringUtils.hasText(userText) && isRagEnabled(options)) {
@@ -521,7 +521,7 @@ public class AiRuntimeService {
 
     private String localAnswer(String userText, RagSearchResponse rag, String fallbackReason) {
         StringBuilder answer = new StringBuilder();
-        answer.append("本地规则回答：当前未完成外部大模型调用，系统已基于 Techen Cloud AI 元数据和 RAG 检索生成可解释结果。");
+        answer.append("本地规则回答：当前未完成外部大模型调用，系统已基于 Goat Cloud AI 元数据和 RAG 检索生成可解释结果。");
         if (StringUtils.hasText(fallbackReason)) {
             answer.append("降级原因：").append(fallbackReason).append("。");
         }
@@ -560,7 +560,7 @@ public class AiRuntimeService {
 
     private String localAnswerClean(String userText, RagSearchResponse rag, String fallbackReason) {
         StringBuilder answer = new StringBuilder();
-        answer.append("本地规则回答：当前未完成外部大模型调用，系统已基于 Techen Cloud AI 元数据和 RAG 检索生成可解释结果。");
+        answer.append("本地规则回答：当前未完成外部大模型调用，系统已基于 Goat Cloud AI 元数据和 RAG 检索生成可解释结果。");
         if (StringUtils.hasText(fallbackReason)) {
             answer.append("降级原因：").append(fallbackReason).append("。");
         }

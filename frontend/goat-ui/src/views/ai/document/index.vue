@@ -276,8 +276,12 @@ async function submitUpload() {
     const formData = new FormData()
     formData.append('knowledgeBaseId', String(uploadForm.knowledgeBaseId))
     formData.append('file', uploadForm.file as File)
+    const token = localStorage.getItem('access_token') || ''
     await fetch('/api/ai/documents/upload', {
       method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
       body: formData,
     })
     ElMessage.success('上传成功')

@@ -1,6 +1,6 @@
 insert into sys_dept (dept_id, parent_id, ancestors, dept_code, dept_name, leader, phone, sort_no, status, remark,
                       create_by, create_time, update_by, update_time, deleted)
-values (1, 0, '0', 'ROOT', 'Techen Cloud', 'System', '13800000000', 0, 'ENABLED', 'Root department',
+values (1, 0, '0', 'ROOT', 'Goat Cloud', 'System', '13800000000', 0, 'ENABLED', 'Root department',
         0, current_timestamp, 0, current_timestamp, 0)
 on conflict (dept_id) do nothing;
 
@@ -14,7 +14,7 @@ insert into sys_user (user_id, username, nickname, password, dept_id, phone, ema
                       create_by, create_time, update_by, update_time, deleted)
 values (1, 'admin', 'Administrator',
         '{bcrypt}$2a$10$JK8mrdRGyS7.lrmDmoFRCO9muxJx5A7gWOYbP2DciCCesgd1mCjhS',
-        1, '13800000000', 'admin@techen.cloud', 'ENABLED', true, 'Built-in administrator account',
+        1, '13800000000', 'admin@goat.cloud', 'ENABLED', true, 'Built-in administrator account',
         0, current_timestamp, 0, current_timestamp, 0)
 on conflict (user_id) do nothing;
 

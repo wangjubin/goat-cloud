@@ -129,7 +129,20 @@ public class Nl2SqlExecutor implements NodeExecutor {
     private boolean isSafeSql(String sql) {
         if (sql == null || sql.isBlank()) return false;
         String upper = sql.trim().toUpperCase();
-        return upper.startsWith("SELECT") || upper.startsWith("WITH");
+        // 1. 必须以 SELECT 或 WITH 开头
+        if (!upper.startsWith("SELECT") && !upper.startsWith("WITH")) return false;
+        // 2. 禁止分号（多语句注入）
+        if (sql.contains(";")) return false;
+        // 3. 禁止 DML/DDL 关键词
+        String[] forbidden = {"INSERT ", "UPDATE ", "DELETE ", "DROP ", "ALTER ",
+                "CREATE ", "TRUNCATE ", "EXEC ", "EXECUTE ", "GRANT ", "REVOKE ",
+                "INTO OUTFILE ", "INTO DUMPFILE ", "LOAD DATA "};
+        for (String kw : forbidden) {
+            if (upper.contains(kw)) return false;
+        }
+        // 4. 禁止注释符号
+        if (sql.contains("--") || sql.contains("/*")) return false;
+        return true;
     }
 
     private void saveSqlLog(Long sessionId, String question, String generatedSql, String intent, Object schemaContext) {

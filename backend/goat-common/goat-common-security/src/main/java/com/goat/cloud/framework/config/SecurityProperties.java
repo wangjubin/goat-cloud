@@ -10,7 +10,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "goat.security")
 public class SecurityProperties {
 
-    private String jwtSecret = "change-me-in-production-change-me-in-production";
+    private String jwtSecret = "please-change-this-secret-in-production-32chars!";
     private long accessTokenMinutes = 30;
     private long refreshTokenDays = 7;
     private String tokenPrefix = "Bearer ";

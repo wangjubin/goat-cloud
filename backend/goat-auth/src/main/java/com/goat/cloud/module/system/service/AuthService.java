@@ -30,6 +30,9 @@ import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 /**
  * @author wangjubin
@@ -46,12 +49,34 @@ public class AuthService {
     private final SessionService sessionService;
     private final SysLoginLogMapper sysLoginLogMapper;
     private final SecurityProperties securityProperties;
+    private final StringRedisTemplate stringRedisTemplate;
+
+    private static final int MAX_LOGIN_ATTEMPTS = 5;
+    private static final int LOCKOUT_MINUTES = 10;
 
     public LoginResponseVO login(LoginRequest request, HttpServletRequest servletRequest) {
+        // 登录限流：检查账号是否被临时锁定
+        String lockKey = "goat:login:lock:" + request.getUsername();
+        String locked = stringRedisTemplate.opsForValue().get(lockKey);
+        if (locked != null) {
+            throw new BusinessException(4001, "账号已锁定，请" + LOCKOUT_MINUTES + "分钟后重试");
+        }
+
         SysUser user = sysUserMapper.selectOne(new LambdaQueryWrapper<SysUser>()
                 .eq(SysUser::getUsername, request.getUsername())
                 .last("limit 1"));
         if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            // 递增失败计数
+            String rateLimitKey = "goat:login:rate:" + request.getUsername();
+            Long attempts = stringRedisTemplate.opsForValue().increment(rateLimitKey);
+            if (attempts != null && attempts == 1) {
+                stringRedisTemplate.expire(rateLimitKey, LOCKOUT_MINUTES, TimeUnit.MINUTES);
+            }
+            if (attempts != null && attempts >= MAX_LOGIN_ATTEMPTS) {
+                stringRedisTemplate.opsForValue().set(lockKey, "1", LOCKOUT_MINUTES, TimeUnit.MINUTES);
+                saveLoginLog(request.getUsername(), false, servletRequest, "连续失败" + MAX_LOGIN_ATTEMPTS + "次，账号锁定" + LOCKOUT_MINUTES + "分钟");
+                throw new BusinessException(4001, "连续失败" + MAX_LOGIN_ATTEMPTS + "次，账号锁定" + LOCKOUT_MINUTES + "分钟");
+            }
             saveLoginLog(request.getUsername(), false, servletRequest, "Username or password is incorrect");
             throw new BusinessException(4002, "Username or password is incorrect");
         }
@@ -59,6 +84,9 @@ public class AuthService {
             saveLoginLog(request.getUsername(), false, servletRequest, "Account is disabled");
             throw new BusinessException(4003, "Account is disabled");
         }
+
+        // 登录成功，清除失败计数
+        stringRedisTemplate.delete("goat:login:rate:" + request.getUsername());
 
         List<SysRole> roles = roleService.listByUserId(user.getUserId());
         if (roles.isEmpty()) {

@@ -1,5 +1,5 @@
 update sys_dept
-set dept_name = 'Techen Cloud 总部',
+set dept_name = 'Goat Cloud 总部',
     leader = '系统管理员',
     remark = '根组织',
     update_by = 0,

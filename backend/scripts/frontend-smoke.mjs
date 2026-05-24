@@ -374,20 +374,20 @@ async function installErrorHooks(page) {
     page,
     `
       (() => {
-        if (window.__techenSmokeInstalled) {
+        if (window.__goatSmokeInstalled) {
           return true
         }
-        window.__techenSmokeInstalled = true
-        window.__techenSmokeErrors = []
+        window.__goatSmokeInstalled = true
+        window.__goatSmokeErrors = []
         window.addEventListener('error', (event) => {
-          window.__techenSmokeErrors.push({
+          window.__goatSmokeErrors.push({
             type: 'error',
             message: event.message || 'Unknown error'
           })
         })
         window.addEventListener('unhandledrejection', (event) => {
           const reason = event.reason
-          window.__techenSmokeErrors.push({
+          window.__goatSmokeErrors.push({
             type: 'unhandledrejection',
             message: typeof reason === 'string' ? reason : JSON.stringify(reason)
           })
@@ -465,7 +465,7 @@ async function inspectRoute(page, routePath) {
             ? text.includes('智能体运行台') && text.includes('运行结果')
             : true,
           loginVisible: !!document.querySelector('.login-card'),
-          errors: Array.isArray(window.__techenSmokeErrors) ? window.__techenSmokeErrors.slice(-5) : []
+          errors: Array.isArray(window.__goatSmokeErrors) ? window.__goatSmokeErrors.slice(-5) : []
         }
       })()
     `,
@@ -510,7 +510,7 @@ async function main() {
     throw new Error('Chrome or Edge was not found on this machine.')
   }
 
-  const userDataDir = mkdtempSync(path.join(os.tmpdir(), 'techen-frontend-smoke-'))
+  const userDataDir = mkdtempSync(path.join(os.tmpdir(), 'goat-frontend-smoke-'))
   let browserProcess
   let browserClient
   let pageClient

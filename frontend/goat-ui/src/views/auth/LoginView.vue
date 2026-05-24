@@ -10,7 +10,7 @@
           <span>TC</span>
           <i></i>
         </div>
-        <p class="eyebrow">Techen Cloud AI Platform</p>
+        <p class="eyebrow">Goat Cloud AI Platform</p>
         <h1>统一权限与 AI 中台</h1>
         <p class="brand-desc">
           聚合用户、角色、组织、菜单、数据权限与 AI 助手、知识库、问数和智能体编排能力，
@@ -28,7 +28,7 @@
         <div class="login-card__header">
           <span>欢迎回来</span>
           <h2>登录控制台</h2>
-          <p>请输入账号密码进入 Techen Cloud</p>
+          <p>请输入账号密码进入 Goat Cloud</p>
         </div>
 
         <el-form :model="form" class="login-form" @submit.prevent="handleLogin">

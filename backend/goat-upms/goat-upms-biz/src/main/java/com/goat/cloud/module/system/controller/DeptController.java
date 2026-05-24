@@ -11,6 +11,7 @@ import com.goat.cloud.module.system.model.vo.DeptTreeVO;
 import com.goat.cloud.module.system.service.DeptService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -51,12 +52,14 @@ public class DeptController {
     }
 
     @PostMapping("/save")
+    @PreAuthorize("@pms.has('system:dept:save')")
     public ApiResponse<Void> save(@RequestBody @Valid DeptSaveRequest request) {
         deptService.save(request);
         return ApiResponse.success();
     }
 
     @PostMapping("/delete")
+    @PreAuthorize("@pms.has('system:dept:save')")
     public ApiResponse<Void> delete(@RequestBody @Valid IdsRequest request) {
         deptService.delete(request.getIds());
         return ApiResponse.success();

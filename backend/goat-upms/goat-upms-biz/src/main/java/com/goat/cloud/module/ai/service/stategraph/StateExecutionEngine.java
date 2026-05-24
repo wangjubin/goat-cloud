@@ -39,6 +39,11 @@ public interface StateExecutionEngine {
     AiStateSession getSession(String runId);
 
     /**
+     * 通过 sessionId 获取会话
+     */
+    AiStateSession getSessionById(Long sessionId);
+
+    /**
      * 取消会话
      */
     void cancelSession(String runId);

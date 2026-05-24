@@ -14,6 +14,7 @@ import com.goat.cloud.module.system.model.vo.UserPageVO;
 import com.goat.cloud.module.system.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -42,36 +43,42 @@ public class UserController {
     }
 
     @PostMapping("/create")
+    @PreAuthorize("@pms.has('system:user:create')")
     public ApiResponse<Void> create(@RequestBody @Valid UserCreateRequest request) {
         userService.create(request);
         return ApiResponse.success();
     }
 
     @PostMapping("/update")
+    @PreAuthorize("@pms.has('system:user:update')")
     public ApiResponse<Void> update(@RequestBody @Valid UserUpdateRequest request) {
         userService.update(request);
         return ApiResponse.success();
     }
 
     @PostMapping("/delete")
+    @PreAuthorize("@pms.has('system:user:delete')")
     public ApiResponse<Void> delete(@RequestBody @Valid IdsRequest request) {
         userService.delete(request.getIds());
         return ApiResponse.success();
     }
 
     @PostMapping("/status")
+    @PreAuthorize("@pms.has('system:user:update')")
     public ApiResponse<Void> status(@RequestBody @Valid StatusChangeRequest request) {
         userService.changeStatus(request.getId(), request.getStatus());
         return ApiResponse.success();
     }
 
     @PostMapping("/reset-password")
+    @PreAuthorize("@pms.has('system:user:update')")
     public ApiResponse<Void> resetPassword(@RequestBody @Valid ResetPasswordRequest request) {
         userService.resetPassword(request.getUserId());
         return ApiResponse.success();
     }
 
     @PostMapping("/assign-roles")
+    @PreAuthorize("@pms.has('system:user:update')")
     public ApiResponse<Void> assignRoles(@RequestBody @Valid AssignUserRolesRequest request) {
         userService.assignRoles(request.getUserId(), request.getRoleIds());
         return ApiResponse.success();

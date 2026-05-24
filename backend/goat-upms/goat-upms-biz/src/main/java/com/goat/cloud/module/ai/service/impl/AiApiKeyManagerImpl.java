@@ -27,7 +27,7 @@ public class AiApiKeyManagerImpl implements AiApiKeyManager {
     private static final int GCM_IV_LENGTH = 12;
     private static final int GCM_TAG_LENGTH = 128;
 
-    @Value("${ai.model.encryption.master-key:default-master-key-32bytes!}")
+    @Value("${goat.ai.encryption.master-key:please-change-aes-master-key-32ch!}")
     private String masterKey;
 
     @Resource

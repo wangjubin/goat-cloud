@@ -7,6 +7,7 @@ import com.goat.cloud.module.system.model.vo.MenuTreeVO;
 import com.goat.cloud.module.system.service.MenuService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -42,12 +43,14 @@ public class MenuController {
     }
 
     @PostMapping("/save")
+    @PreAuthorize("@pms.has('system:menu:save')")
     public ApiResponse<Void> save(@RequestBody @Valid MenuSaveRequest request) {
         menuService.save(request);
         return ApiResponse.success();
     }
 
     @PostMapping("/delete/{menuId}")
+    @PreAuthorize("@pms.has('system:menu:save')")
     public ApiResponse<Void> delete(@PathVariable Long menuId) {
         menuService.delete(menuId);
         return ApiResponse.success();

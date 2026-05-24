@@ -89,6 +89,11 @@ public class StateExecutionEngineImpl implements StateExecutionEngine {
     }
 
     @Override
+    public AiStateSession getSessionById(Long sessionId) {
+        return sessionMapper.selectById(sessionId);
+    }
+
+    @Override
     @Transactional
     public void cancelSession(String runId) {
         AiStateSession session = loadSession(runId);

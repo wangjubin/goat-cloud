@@ -13,6 +13,7 @@ import com.goat.cloud.module.system.model.vo.RolePermissionVO;
 import com.goat.cloud.module.system.service.RoleService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -41,24 +42,28 @@ public class RoleController {
     }
 
     @PostMapping("/save")
+    @PreAuthorize("@pms.has('system:role:save')")
     public ApiResponse<Void> save(@RequestBody @Valid RoleSaveRequest request) {
         roleService.save(request);
         return ApiResponse.success();
     }
 
     @PostMapping("/delete")
+    @PreAuthorize("@pms.has('system:role:save')")
     public ApiResponse<Void> delete(@RequestBody @Valid IdsRequest request) {
         roleService.delete(request.getIds());
         return ApiResponse.success();
     }
 
     @PostMapping("/status")
+    @PreAuthorize("@pms.has('system:role:save')")
     public ApiResponse<Void> status(@RequestBody @Valid StatusChangeRequest request) {
         roleService.changeStatus(request.getId(), request.getStatus());
         return ApiResponse.success();
     }
 
     @PostMapping("/assign-permissions")
+    @PreAuthorize("@pms.has('system:role:save')")
     public ApiResponse<Void> assignPermissions(@RequestBody @Valid AssignRolePermissionsRequest request) {
         roleService.assignPermissions(request);
         return ApiResponse.success();
