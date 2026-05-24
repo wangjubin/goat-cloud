@@ -89,3 +89,9 @@ async function handleRefresh(
     isRefreshing = false
   }
 }
+
+// Default http instance with no-op token refresh (for use outside stores)
+const noop = async () => {}
+const noop2 = () => {}
+const http = createHttp(noop, noop2)
+export default http
