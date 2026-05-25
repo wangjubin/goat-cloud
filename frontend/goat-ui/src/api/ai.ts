@@ -186,3 +186,15 @@ export function resumeChatBiSession(runId: string, feedback: Record<string, unkn
 export function getChatBiSession(runId: string) {
   return http.get<any, Record<string, unknown>>(`/ai/chatbi/chat/session/${runId}`)
 }
+
+// ========== Datasource Import ==========
+
+export function testDatasourceConnection(datasourceId: number) {
+  return http.post<any, Record<string, unknown>>(`/ai/chatbi/datasources/${datasourceId}/test-connection`)
+}
+
+export function importDatasourceTables(datasourceId: number, schema = 'public') {
+  return http.post<any, Record<string, unknown>[]>(`/ai/chatbi/datasources/${datasourceId}/import-tables`, null, {
+    params: { schema },
+  })
+}

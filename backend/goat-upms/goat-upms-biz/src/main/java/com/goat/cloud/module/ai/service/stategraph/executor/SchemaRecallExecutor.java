@@ -60,6 +60,10 @@ public class SchemaRecallExecutor implements NodeExecutor {
 
             // 2. 加载数据源和表结构
             AiChatBiDatasource datasource = datasourceId != null ? datasourceMapper.selectById(datasourceId) : null;
+            // 将数据源配置的 modelId 注入到 context，供下游 Nl2SqlExecutor 使用
+            if (datasource != null && datasource.getModelId() != null) {
+                context.put("modelId", datasource.getModelId());
+            }
             List<AiChatBiTable> tables = tableMapper.selectList(
                     new LambdaQueryWrapper<AiChatBiTable>()
                             .eq(datasourceId != null, AiChatBiTable::getDatasourceId, datasourceId)

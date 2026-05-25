@@ -16,7 +16,7 @@ import type {AiFormField, AiTableColumn} from '../../components/types'
 const columns: AiTableColumn[] = [
   { prop: 'datasetName', label: '数据集名称', minWidth: 170 },
   { prop: 'datasetCode', label: '数据集编码', minWidth: 140 },
-  { prop: 'datasourceId', label: '数据源ID', width: 110 },
+  { prop: 'datasourceId', label: '数据源', width: 110 },
   { prop: 'tableIds', label: '关联表', minWidth: 130 },
   { prop: 'defaultFilters', label: '默认过滤', minWidth: 160 },
   { prop: 'status', label: '状态', width: 100, type: 'status' },
@@ -25,7 +25,8 @@ const columns: AiTableColumn[] = [
 const formFields: AiFormField[] = [
   { prop: 'datasetName', label: '数据集名称', required: true },
   { prop: 'datasetCode', label: '数据集编码', required: true },
-  { prop: 'datasourceId', label: '数据源ID', type: 'number', defaultValue: 1 },
+  { prop: 'datasourceId', label: '数据源', type: 'selectAsync',
+    apiPath: 'chatbi/datasources', valueField: 'datasourceId', labelField: 'datasourceName' },
   { prop: 'tableIds', label: '关联表ID', placeholder: '例如 1,2,3' },
   { prop: 'semanticModel', label: '语义模型 JSON', type: 'textarea', span: 24, rows: 5 },
   { prop: 'defaultFilters', label: '默认过滤条件', type: 'textarea', span: 24 },

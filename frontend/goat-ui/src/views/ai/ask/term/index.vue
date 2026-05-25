@@ -18,7 +18,7 @@ const columns: AiTableColumn[] = [
   { prop: 'termCode', label: '术语编码', minWidth: 140 },
   { prop: 'synonyms', label: '别名', minWidth: 180 },
   { prop: 'definition', label: '定义', minWidth: 260 },
-  { prop: 'datasetId', label: '数据集ID', width: 110 },
+  { prop: 'datasetId', label: '数据集', width: 110 },
   { prop: 'status', label: '状态', width: 100, type: 'status' },
 ]
 
@@ -28,7 +28,8 @@ const formFields: AiFormField[] = [
   { prop: 'synonyms', label: '别名', span: 24 },
   { prop: 'definition', label: '定义', type: 'textarea', span: 24 },
   { prop: 'expression', label: '计算表达式', type: 'textarea', span: 24 },
-  { prop: 'datasetId', label: '数据集ID', type: 'number', defaultValue: 1 },
+  { prop: 'datasetId', label: '数据集', type: 'selectAsync',
+    apiPath: 'chatbi/datasets', valueField: 'datasetId', labelField: 'datasetName' },
   {
     prop: 'status',
     label: '状态',

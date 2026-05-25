@@ -129,6 +129,15 @@
                   <el-button type="primary" @click="triggerUpload(field.prop)">选择文件</el-button>
                   <span v-if="form[field.prop]" class="upload-file-name">{{ getFileName(form[field.prop]) }}</span>
                 </div>
+                <ColumnEditor
+                  v-else-if="field.type === 'columnEditor'"
+                  v-model="form[field.prop]"
+                />
+                <NodeConfigEditor
+                  v-else-if="field.type === 'nodeConfig'"
+                  v-model="form[field.prop]"
+                  :node-type="String(form['nodeType'] || '')"
+                />
               </el-form-item>
             </el-col>
           </el-row>
@@ -224,6 +233,7 @@ function handlePageChange(pageNum: number) {
 function openCreate() {
   editingId.value = null
   resetForm()
+  loadAllAsyncOptions()
   dialogVisible.value = true
 }
 
@@ -231,6 +241,7 @@ async function openEdit(row: Record<string, unknown>) {
   const id = row[props.idKey] as string | number
   editingId.value = id
   resetForm()
+  loadAllAsyncOptions()
   try {
     const detail = await fetchAiDetail(props.resource, id)
     Object.assign(form, detail || row)
@@ -298,6 +309,12 @@ async function loadAsyncOptions(field: AiFormField) {
   }
 }
 
+function loadAllAsyncOptions() {
+  props.formFields
+    .filter(f => f.type === 'selectAsync' && f.apiPath)
+    .forEach(f => loadAsyncOptions(f))
+}
+
 function triggerUpload(prop: string) {
   uploadField.value = prop
   const input = document.createElement('input')
@@ -347,6 +364,8 @@ function statusTagType(value: unknown) {
 }
 
 onMounted(loadData)
+
+defineExpose({ loadData })
 </script>
 
 <style scoped>

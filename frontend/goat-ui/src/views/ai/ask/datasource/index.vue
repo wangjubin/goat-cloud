@@ -29,6 +29,10 @@ const formFields: AiFormField[] = [
   { prop: 'jdbcUrl', label: 'JDBC 地址', span: 24, required: true },
   { prop: 'username', label: '账号' },
   { prop: 'credentialRef', label: '凭据引用', placeholder: '例如 ENV:POSTGRES_PASSWORD' },
+  { prop: 'modelId', label: 'NL2SQL 模型', type: 'selectAsync',
+    apiPath: 'models', valueField: 'modelId', labelField: 'modelName',
+    placeholder: '留空则使用默认模型' },
+  { prop: 'driverClassName', label: 'JDBC 驱动', defaultValue: 'org.postgresql.Driver' },
   {
     prop: 'status',
     label: '状态',

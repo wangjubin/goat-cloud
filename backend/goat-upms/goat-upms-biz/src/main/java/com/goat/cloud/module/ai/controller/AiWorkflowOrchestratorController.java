@@ -194,7 +194,7 @@ public class AiWorkflowOrchestratorController {
         Set<String> validTypes = Set.of(
                 "START", "END", "GATEWAY", "INTENT_RECOGNITION", "SCHEMA_RECALL",
                 "NL2SQL", "SQL_EXECUTION", "HUMAN_FEEDBACK", "PYTHON_EXECUTION",
-                "REPORT_GENERATION"
+                "REPORT_GENERATION", "RAG_SEARCH", "CHATBI", "AGENT", "CHAT", "PASSTHROUGH"
         );
         for (AiStateNode node : nodes) {
             if (!validTypes.contains(node.getNodeType())) {

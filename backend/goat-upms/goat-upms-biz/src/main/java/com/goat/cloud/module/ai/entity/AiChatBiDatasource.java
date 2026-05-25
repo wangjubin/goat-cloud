@@ -24,6 +24,9 @@ public class AiChatBiDatasource extends BaseEntity {
     private String jdbcUrl;
     private String username;
     private String credentialRef;
+    private Long modelId;
+    private String driverClassName;
+    private String passwordEncrypted;
     private CommonStatus status;
     private String remark;
 }

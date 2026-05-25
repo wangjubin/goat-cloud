@@ -26,4 +26,5 @@ public class AiStateGraph extends BaseEntity {
     private String status;
     private String graphType;
     private Long parentGraphId;
+    private Long defaultModelId;
 }

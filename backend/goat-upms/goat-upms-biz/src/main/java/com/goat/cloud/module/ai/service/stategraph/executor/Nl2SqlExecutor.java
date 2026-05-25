@@ -77,9 +77,21 @@ public class Nl2SqlExecutor implements NodeExecutor {
             userPrompt.append("请生成对应的SQL查询语句。");
 
             // 调用 LLM 生成 SQL
+            Long modelId = null;
+            // 1. 优先从 nodeConfig 读取
+            if (nodeConfig != null && !nodeConfig.isBlank()) {
+                try {
+                    com.fasterxml.jackson.databind.JsonNode config = objectMapper.readTree(nodeConfig);
+                    if (config.has("modelId")) modelId = config.get("modelId").asLong();
+                } catch (Exception ignored) {}
+            }
+            // 2. 其次从 context 读取（可能由上游节点注入）
+            if (modelId == null) modelId = toLong(context.get("modelId"));
+
             AiChatRequest chatRequest = new AiChatRequest();
             chatRequest.setSystemPrompt(NL2SQL_SYSTEM_PROMPT);
             chatRequest.setMessage(userPrompt.toString());
+            if (modelId != null) chatRequest.setModelId(modelId);
             chatRequest.setOptions(Map.of("bizType", "NL2SQL"));
             AiChatResponse chatResponse = runtimeService.chat(chatRequest);
             String generatedSql = chatResponse.getMessage() != null ? chatResponse.getMessage().getContent() : "";
