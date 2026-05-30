@@ -1,4 +1,4 @@
-/param(
+param(
     [string]$BaseUrl = 'http://localhost:8080',
     [string]$Username = 'admin',
     [string]$Password = 'Admin@123456'

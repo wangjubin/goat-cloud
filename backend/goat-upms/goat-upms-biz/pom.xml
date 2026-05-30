@@ -21,6 +21,11 @@
         </dependency>
         <dependency>
             <groupId>com.goat.cloud</groupId>
+            <artifactId>goat-common-mybatis</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.goat.cloud</groupId>
             <artifactId>goat-common-security</artifactId>
             <version>${project.version}</version>
         </dependency>

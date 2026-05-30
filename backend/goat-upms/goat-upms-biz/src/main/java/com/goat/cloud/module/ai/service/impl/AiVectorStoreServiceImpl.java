@@ -28,15 +28,15 @@ public class AiVectorStoreServiceImpl implements AiVectorStoreService {
 
     @Override
     public void storeVector(AiDocumentChunk chunk, float[] embedding) {
-        String vectorStr = arrayToPgVector(embedding);
+        String vectorJson = arrayToPgVector(embedding);
         String sql = """
             INSERT INTO %s (chunk_id, knowledge_base_id, document_id, vector)
-            VALUES (?, ?, ?, ?::vector)
-            ON CONFLICT (chunk_id) DO UPDATE SET vector = ?::vector
+            VALUES (?, ?, ?, ?::jsonb)
+            ON CONFLICT (chunk_id) DO UPDATE SET vector = ?::jsonb
             """.formatted(VECTOR_TABLE);
 
         jdbcTemplate.update(sql, chunk.getChunkId(), chunk.getKnowledgeBaseId(),
-                chunk.getDocumentId(), vectorStr, vectorStr);
+                chunk.getDocumentId(), vectorJson, vectorJson);
 
         chunk.setEmbeddingStatus("indexed");
         chunkMapper.updateById(chunk);

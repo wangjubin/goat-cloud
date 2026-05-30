@@ -225,7 +225,12 @@ public class AiService {
                 List<String> keywordColumns = tableInfo.getFieldList().stream()
                         .filter(field -> String.class.equals(field.getPropertyType()))
                         .map(TableFieldInfo::getColumn)
-                        .filter(column -> !List.of("status", "remark", "metadata", "graph_json", "embedding_vector").contains(column))
+                        .filter(column -> !List.of(
+                                "status", "remark", "metadata", "graph_json", "embedding_vector",
+                                "retrieval_config", "indexing_config", "access_control",
+                                "variables_schema", "auth_config", "timeout_config", "retry_config",
+                                "rate_limit_config", "price_config", "edges_json"
+                        ).contains(column))
                         .toList();
                 if (!keywordColumns.isEmpty()) {
                     String keyword = query.getKeyword().trim();

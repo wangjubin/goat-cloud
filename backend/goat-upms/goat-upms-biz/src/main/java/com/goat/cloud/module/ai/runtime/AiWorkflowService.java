@@ -4,10 +4,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.goat.cloud.common.exception.BusinessException;
 import com.goat.cloud.module.ai.entity.AiStateGraph;
 import com.goat.cloud.module.ai.entity.AiStateSession;
+import com.goat.cloud.module.ai.entity.AiWorkflow;
 import com.goat.cloud.module.ai.mapper.AiStateGraphMapper;
+import com.goat.cloud.module.ai.mapper.AiWorkflowMapper;
 import com.goat.cloud.module.ai.runtime.model.WorkflowRunRequest;
 import com.goat.cloud.module.ai.runtime.model.WorkflowRunResponse;
 import com.goat.cloud.module.ai.runtime.model.WorkflowNodeResult;
+import com.goat.cloud.module.ai.runtime.model.WorkflowNodeTrace;
 import com.goat.cloud.module.ai.service.stategraph.StateExecutionEngine;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +32,7 @@ public class AiWorkflowService {
 
     private final ObjectMapper objectMapper;
     private final AiStateGraphMapper stateGraphMapper;
+    private final AiWorkflowMapper workflowMapper;
     private final StateExecutionEngine executionEngine;
 
     /**
@@ -41,7 +45,19 @@ public class AiWorkflowService {
         }
         AiStateGraph graph = safeSelectById(workflowId);
         if (graph == null) {
-            throw new BusinessException(4044, "Workflow not found");
+            // Fallback: try ai_workflow table and convert to a minimal AiStateGraph
+            AiWorkflow workflow = safeSelectWorkflowById(workflowId);
+            if (workflow == null) {
+                throw new BusinessException(4044, "Workflow not found");
+            }
+            graph = new AiStateGraph();
+            graph.setGraphId(workflow.getWorkflowId());
+            graph.setGraphCode(workflow.getWorkflowCode());
+            graph.setGraphName(workflow.getWorkflowName());
+            graph.setDescription(workflow.getDescription());
+            graph.setVersion(workflow.getVersion());
+            graph.setDefinitionJson(workflow.getGraphJson());
+            graph.setStatus(workflow.getStatus() != null ? workflow.getStatus().name() : "ENABLED");
         }
 
         WorkflowRunRequest safeRequest = request == null ? new WorkflowRunRequest() : request;
@@ -104,6 +120,7 @@ public class AiWorkflowService {
 
         // Map node traces to nodeResults
         List<WorkflowNodeResult> nodeResults = new ArrayList<>();
+        List<WorkflowNodeTrace> traces = new ArrayList<>();
         // The session stores node traces in resultJson — parse if available
         String resultJson = session.getResultJson();
         if (StringUtils.hasText(resultJson)) {
@@ -121,14 +138,34 @@ public class AiWorkflowService {
                     }
                 } else {
                     // Result is a simple output
-                    response.setFinalOutput(resultJson);
+                    response.setFinalOutput(resultNode);
+                    // Extract summary from finalOutput if present
+                    if (resultNode.has("summary")) {
+                        com.fasterxml.jackson.databind.JsonNode summaryNode = resultNode.get("summary");
+                        if (summaryNode.has("content")) {
+                            response.setSummary(summaryNode.get("content").asText(""));
+                        } else if (summaryNode.isTextual()) {
+                            response.setSummary(summaryNode.asText(""));
+                        }
+                    }
                 }
+                // Build traces from result keys
+                resultNode.fieldNames().forEachRemaining(key -> {
+                    com.fasterxml.jackson.databind.JsonNode nodeVal = resultNode.get(key);
+                    if (nodeVal.isObject() && (nodeVal.has("status") || nodeVal.has("passthrough"))) {
+                        WorkflowNodeTrace trace = new WorkflowNodeTrace();
+                        trace.setNodeId(key);
+                        trace.setStatus(nodeVal.path("status").asText(nodeVal.has("passthrough") ? "PASSED" : "UNKNOWN"));
+                        traces.add(trace);
+                    }
+                });
             } catch (Exception e) {
                 log.debug("Could not parse resultJson, using raw value");
                 response.setFinalOutput(Map.of("raw", resultJson));
             }
         }
         response.setNodeResults(nodeResults);
+        response.setTraces(traces);
 
         // Build metadata
         Map<String, Object> metadata = new LinkedHashMap<>();
@@ -144,6 +181,15 @@ public class AiWorkflowService {
     private AiStateGraph safeSelectById(Long id) {
         try {
             return stateGraphMapper.selectById(id);
+        } catch (RuntimeException ex) {
+            if (AiRuntimeHelper.isMissingTable(ex)) return null;
+            throw ex;
+        }
+    }
+
+    private AiWorkflow safeSelectWorkflowById(Long id) {
+        try {
+            return workflowMapper.selectById(id);
         } catch (RuntimeException ex) {
             if (AiRuntimeHelper.isMissingTable(ex)) return null;
             throw ex;

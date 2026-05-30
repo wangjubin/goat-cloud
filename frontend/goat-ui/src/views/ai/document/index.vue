@@ -172,7 +172,7 @@
 <script setup lang="ts">
 import {computed, onMounted, reactive, ref} from 'vue'
 import {ElMessage, ElMessageBox, type FormInstance, type FormRules} from 'element-plus'
-import {deleteAiResource, fetchAiDetail, fetchAiPage, saveAiResource} from '@/api/ai'
+import {deleteAiResource, fetchAiDetail, fetchAiPage, saveAiResource, uploadAiDocument} from '@/api/ai'
 
 const query = reactive({
   pageNum: 1,
@@ -265,7 +265,11 @@ function handleFileRemove() {
 }
 
 async function submitUpload() {
-  await uploadFormRef.value?.validate()
+  try {
+    await uploadFormRef.value?.validate()
+  } catch {
+    return
+  }
   if (!uploadForm.file) {
     ElMessage.warning('请选择文件')
     return
@@ -276,19 +280,12 @@ async function submitUpload() {
     const formData = new FormData()
     formData.append('knowledgeBaseId', String(uploadForm.knowledgeBaseId))
     formData.append('file', uploadForm.file as File)
-    const token = localStorage.getItem('access_token') || ''
-    await fetch('/api/ai/documents/upload', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    })
-    ElMessage.success('上传成功')
+    const result = await uploadAiDocument(formData)
+    ElMessage.success(result?.message || '上传成功')
     uploadVisible.value = false
     await loadData()
   } catch (error: any) {
-    ElMessage.error(error.message || '上传失败')
+    ElMessage.error(error?.message || '上传失败')
   } finally {
     uploading.value = false
   }
