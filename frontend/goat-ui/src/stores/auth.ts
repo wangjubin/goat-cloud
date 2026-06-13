@@ -16,7 +16,7 @@ export const useAuthStore = defineStore('auth', {
       const result = await loginApi(payload)
       this.applyTokens(result)
       this.loggedIn = true
-      this.applyProfile(result)
+      await this.applyProfile(result)
       return result
     },
     async restoreProfile() {

@@ -1,4 +1,5 @@
 import {http} from './client'
+import {storage} from '@/utils/storage'
 import type {PageResponse} from '@/types/auth'
 
 export interface AiPageQuery {
@@ -121,18 +122,13 @@ export interface ChatBiRequest {
   graphCode?: string
 }
 
-export function chatBiStream(request: ChatBiRequest): EventSource | null {
-  // ChatBI 使用 POST SSE，需要用 fetch + ReadableStream 方式
-  return null
-}
-
 export async function chatBiStreamFetch(
   request: ChatBiRequest,
   onEvent: (event: string, data: Record<string, unknown>) => void,
   onError?: (error: string) => void,
   signal?: AbortSignal
 ) {
-  const token = localStorage.getItem('access_token') || ''
+  const token = storage.getAccessToken()
   const response = await fetch('/api/ai/chatbi/chat/stream', {
     method: 'POST',
     headers: {
@@ -196,5 +192,39 @@ export function testDatasourceConnection(datasourceId: number) {
 export function importDatasourceTables(datasourceId: number, schema = 'public') {
   return http.post<any, Record<string, unknown>[]>(`/ai/chatbi/datasources/${datasourceId}/import-tables`, null, {
     params: { schema },
+  })
+}
+
+// ========== Conversations ==========
+
+export interface AiConversation {
+  conversationId: string
+  agentId: number
+  userId: number
+  title: string
+  status: string
+  createTime: string
+}
+
+export interface AiConversationRecord {
+  recordId: number
+  conversationId: string
+  role: string
+  content: string
+  thinking?: string
+  createTime: string
+}
+
+export function fetchConversations(params: { agentId?: number; userId?: number; pageNum?: number; pageSize?: number }) {
+  return http.post<any, AiConversation[]>('/ai/conversations/list', params)
+}
+
+export function fetchConversationDetail(conversationId: string) {
+  return http.get<any, AiConversation>(`/ai/conversations/${conversationId}`)
+}
+
+export function fetchConversationHistory(conversationId: string, limit = 50) {
+  return http.get<any, AiConversationRecord[]>(`/ai/conversations/${conversationId}/history`, {
+    params: { limit },
   })
 }

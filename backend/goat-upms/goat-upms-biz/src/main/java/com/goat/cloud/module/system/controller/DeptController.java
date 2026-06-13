@@ -41,11 +41,6 @@ public class DeptController {
         return ApiResponse.success(deptService.tree(query == null ? new DeptPageQuery() : query));
     }
 
-    @GetMapping("/tree")
-    public ApiResponse<List<DeptTreeVO>> tree() {
-        return ApiResponse.success(deptService.tree(new DeptPageQuery()));
-    }
-
     @GetMapping("/{deptId}")
     public ApiResponse<SysDept> detail(@PathVariable Long deptId) {
         return ApiResponse.success(deptService.detail(deptId));
@@ -59,7 +54,7 @@ public class DeptController {
     }
 
     @PostMapping("/delete")
-    @PreAuthorize("@pms.has('system:dept:save')")
+    @PreAuthorize("@pms.has('system:dept:delete')")
     public ApiResponse<Void> delete(@RequestBody @Valid IdsRequest request) {
         deptService.delete(request.getIds());
         return ApiResponse.success();

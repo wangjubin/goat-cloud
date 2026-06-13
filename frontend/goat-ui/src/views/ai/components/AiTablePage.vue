@@ -104,6 +104,22 @@
                   />
                 </el-select>
                 <el-select
+                  v-else-if="field.type === 'multi-select'"
+                  v-model="form[field.prop]"
+                  :placeholder="field.placeholder || `请选择${field.label}`"
+                  multiple
+                  collapse-tags
+                  collapse-tags-tooltip
+                  clearable
+                >
+                  <el-option
+                    v-for="option in field.options || []"
+                    :key="String(option.value)"
+                    :label="option.label"
+                    :value="option.value"
+                  />
+                </el-select>
+                <el-select
                   v-else-if="field.type === 'selectAsync'"
                   v-model="form[field.prop]"
                   :placeholder="field.placeholder || `请选择${field.label}`"
@@ -196,7 +212,8 @@ const rules = computed<FormRules>(() => {
   const result: FormRules = {}
   props.formFields.forEach((field) => {
     if (field.required) {
-      result[field.prop] = [{ required: true, message: `请填写${field.label}`, trigger: 'blur' }]
+      const trigger = ['select', 'switch', 'datetime', 'columnEditor'].includes(field.type) ? 'change' : 'blur'
+      result[field.prop] = [{ required: true, message: `请填写${field.label}`, trigger }]
     }
   })
   return result
@@ -248,6 +265,13 @@ async function openEdit(row: Record<string, unknown>) {
   } catch (error) {
     Object.assign(form, row)
   }
+  // Convert comma-separated strings to arrays for multi-select fields
+  props.formFields.forEach((field) => {
+    if (field.type === 'multi-select' && typeof form[field.prop] === 'string') {
+      const value = form[field.prop] as string
+      form[field.prop] = value ? value.split(',').map((s) => s.trim()).filter(Boolean) : []
+    }
+  })
   dialogVisible.value = true
 }
 
@@ -255,7 +279,14 @@ async function submitForm() {
   await formRef.value?.validate()
   saving.value = true
   try {
-    await saveAiResource(props.resource, {...form})
+    // Convert multi-select arrays to comma-separated strings
+    const payload = {...form}
+    props.formFields.forEach((field) => {
+      if (field.type === 'multi-select' && Array.isArray(payload[field.prop])) {
+        payload[field.prop] = payload[field.prop].join(',')
+      }
+    })
+    await saveAiResource(props.resource, payload)
     ElMessage.success('保存成功')
     dialogVisible.value = false
     await loadData()

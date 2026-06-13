@@ -202,7 +202,7 @@
 import { ref, onMounted } from 'vue'
 import { Refresh, Plus, Connection } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import http from '@/api/http'
+import { http } from '@/api/client'
 
 const loading = ref(false)
 const workflows = ref<any[]>([])

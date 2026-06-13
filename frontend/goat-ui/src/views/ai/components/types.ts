@@ -7,7 +7,7 @@ export interface AiTableColumn {
   tooltip?: boolean
 }
 
-export type AiFormFieldType = 'input' | 'textarea' | 'number' | 'select' | 'switch' | 'datetime' | 'selectAsync' | 'upload' | 'columnEditor' | 'nodeConfig'
+export type AiFormFieldType = 'input' | 'textarea' | 'number' | 'select' | 'multi-select' | 'switch' | 'datetime' | 'selectAsync' | 'upload' | 'columnEditor' | 'nodeConfig'
 
 export interface AiFormField {
   prop: string

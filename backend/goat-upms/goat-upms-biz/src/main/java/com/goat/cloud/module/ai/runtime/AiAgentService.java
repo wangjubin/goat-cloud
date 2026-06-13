@@ -5,6 +5,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.goat.cloud.common.exception.BusinessException;
+import com.goat.cloud.module.ai.agent.AgentChatChain;
+import com.goat.cloud.module.ai.agent.AgentChatContext;
 import com.goat.cloud.module.ai.entity.AiAgent;
 import com.goat.cloud.module.ai.entity.AiApiSkill;
 import com.goat.cloud.module.ai.entity.AiMcpTool;
@@ -13,6 +15,8 @@ import com.goat.cloud.module.ai.mapper.AiAgentMapper;
 import com.goat.cloud.module.ai.mapper.AiApiSkillMapper;
 import com.goat.cloud.module.ai.mapper.AiMcpToolMapper;
 import com.goat.cloud.module.ai.mapper.AiPromptTemplateMapper;
+import com.goat.cloud.module.ai.memory.ShortTermMessage;
+import com.goat.cloud.module.ai.memory.ShortTermMemoryStore;
 import com.goat.cloud.module.ai.model.request.AiChatRequest;
 import com.goat.cloud.module.ai.model.vo.AiChatResponse;
 import com.goat.cloud.module.ai.runtime.model.AgentRunRequest;
@@ -22,6 +26,7 @@ import com.goat.cloud.module.ai.runtime.model.ChatBiAskResponse;
 import com.goat.cloud.module.ai.runtime.model.RagSearchRequest;
 import com.goat.cloud.module.ai.runtime.model.RagSearchResponse;
 import com.goat.cloud.module.ai.runtime.model.RagSearchHit;
+import com.goat.cloud.module.ai.service.AiConversationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.env.Environment;
 import org.springframework.http.MediaType;
@@ -42,6 +47,7 @@ import java.util.UUID;
 public class AiAgentService {
 
     private static final int DEFAULT_RAG_TOP_K = 5;
+    private static final int DEFAULT_SHORT_TERM_WINDOW = 20;
 
     private final ObjectMapper objectMapper;
     private final Environment environment;
@@ -52,6 +58,9 @@ public class AiAgentService {
     private final AiRagSearchService ragSearchService;
     private final AiChatBiService chatBiService;
     private final AiChatService chatService;
+    private final AiConversationService conversationService;
+    private final ShortTermMemoryStore shortTermMemoryStore;
+    private final AgentChatChain agentChatChain;
 
     public AgentRunResponse runAgent(Long agentId, AgentRunRequest request) {
         if (agentId == null) {
@@ -69,6 +78,27 @@ public class AiAgentService {
         boolean ragEnabled = !knowledgeBaseIds.isEmpty() && isRagEnabled(options);
         boolean toolingEnabled = !tools.isEmpty() && !Boolean.FALSE.equals(AiRuntimeHelper.toBoolean(options.get("useTools")));
         boolean chatBiEnabled = shouldUseChatBi(safeRequest.getMessage(), options);
+
+        // 加载短期记忆历史
+        String conversationId = StringUtils.hasText(safeRequest.getConversationId())
+                ? safeRequest.getConversationId() : UUID.randomUUID().toString();
+        int windowSize = AiRuntimeHelper.toInteger(options.get("shortTermWindow"), DEFAULT_SHORT_TERM_WINDOW);
+        List<ShortTermMessage> historyMessages = shortTermMemoryStore.loadHistory(conversationId, windowSize);
+
+        // 保存用户消息到短期记忆和持久化
+        if (StringUtils.hasText(safeRequest.getMessage())) {
+            shortTermMemoryStore.append(conversationId, "user", safeRequest.getMessage(), windowSize);
+            try {
+                Long userId = AiRuntimeHelper.toLong(options.get("userId"));
+                if (userId != null) {
+                    conversationService.getOrCreateConversation(conversationId, agentId, userId, safeRequest.getMessage());
+                    conversationService.saveMessage(conversationId, agentId, userId, "user", safeRequest.getMessage(), null);
+                }
+            } catch (Exception ex) {
+                // 对话持久化失败不阻塞主流程
+            }
+        }
+
         List<Map<String, Object>> plan = buildAgentRunPlan(agent, safeRequest, knowledgeBaseIds, tools, ragEnabled, toolingEnabled, chatBiEnabled);
 
         RagSearchResponse rag = null;
@@ -98,7 +128,7 @@ public class AiAgentService {
         }
 
         AiChatRequest chatRequest = new AiChatRequest();
-        chatRequest.setConversationId(safeRequest.getConversationId());
+        chatRequest.setConversationId(conversationId);
         chatRequest.setModelId(agent.getModelId());
         chatRequest.setMessage(safeRequest.getMessage());
         chatRequest.setSystemPrompt(buildAgentRuntimePrompt(agent, prompt, tools, plan, rag, toolResults, chatBi));
@@ -110,6 +140,19 @@ public class AiAgentService {
         options.put("rag", Boolean.FALSE);
         chatRequest.setOptions(options);
         AiChatResponse chat = chatService.chat(chatRequest);
+
+        // 保存助手回复到短期记忆和持久化
+        if (chat.getMessage() != null && StringUtils.hasText(chat.getMessage().getContent())) {
+            shortTermMemoryStore.append(conversationId, "assistant", chat.getMessage().getContent(), windowSize);
+            try {
+                Long userId = AiRuntimeHelper.toLong(options.get("userId"));
+                if (userId != null) {
+                    conversationService.saveMessage(conversationId, agentId, userId, "assistant", chat.getMessage().getContent(), null);
+                }
+            } catch (Exception ex) {
+                // 对话持久化失败不阻塞主流程
+            }
+        }
 
         AgentRunResponse response = new AgentRunResponse();
         response.setAgentId(agent.getAgentId());
@@ -133,6 +176,67 @@ public class AiAgentService {
                 "safety", "Only local GET /actuator/health can be called; all other API/MCP tools are simulated or skipped.",
                 "providerFinishReason", chat.getFinishReason(),
                 "mock", chat.getMock()
+        ));
+        response.setMetadata(metadata);
+        response.setCreatedAt(LocalDateTime.now());
+        return response;
+    }
+
+    /**
+     * 使用责任链模式运行 Agent（新架构）
+     * 参考 snail-ai 的 handler chain 模式
+     */
+    public AgentRunResponse runAgentWithChain(Long agentId, AgentRunRequest request) {
+        if (agentId == null) {
+            throw new BusinessException(4001, "Agent id is required");
+        }
+        AgentRunRequest safeRequest = request == null ? new AgentRunRequest() : request;
+        Map<String, Object> options = safeOptions(safeRequest.getOptions());
+        String conversationId = StringUtils.hasText(safeRequest.getConversationId())
+                ? safeRequest.getConversationId() : java.util.UUID.randomUUID().toString();
+        Long userId = AiRuntimeHelper.toLong(options.get("userId"));
+
+        // 构建上下文
+        AgentChatContext ctx = new AgentChatContext(agentId, conversationId,
+                safeRequest.getMessage(), userId, options);
+
+        // 执行 handler 链
+        agentChatChain.execute(ctx);
+
+        // 如果链路被终止，抛出异常
+        if (ctx.isTerminated()) {
+            throw new BusinessException(5000, ctx.getErrorMessage());
+        }
+
+        // 从上下文构建响应
+        AiChatResponse chat = (AiChatResponse) ctx.getRuntimeMetadata().get("chatResponse");
+
+        AgentRunResponse response = new AgentRunResponse();
+        response.setAgentId(ctx.getAgent().getAgentId());
+        response.setAgentCode(ctx.getAgent().getAgentCode());
+        response.setAgentName(ctx.getAgent().getAgentName());
+        response.setDescription(ctx.getAgent().getDescription());
+        response.setModelId(ctx.getAgent().getModelId());
+        response.setPromptId(ctx.getAgent().getPromptId());
+        response.setKnowledgeBaseIds(parseLongList(ctx.getAgent().getKnowledgeBaseIds()));
+        response.setTools(ctx.getTools());
+        response.setChat(chat);
+
+        // 构建 metadata
+        java.util.Map<String, Object> metadata = new java.util.LinkedHashMap<>();
+        metadata.put("tools", ctx.getTools());
+        metadata.put("toolCalls", ctx.getToolCalls());
+        metadata.put("toolResults", ctx.getToolResults());
+        metadata.put("historySize", ctx.getHistoryMessages().size());
+        metadata.put("ragHits", ctx.getRagResponse() != null ? ctx.getRagResponse().getTotal() : 0);
+        metadata.put("chatBi", ctx.getChatBiResponse() != null ? Map.of(
+                "candidateSql", ctx.getChatBiResponse().getCandidateSql(),
+                "executionPolicy", ctx.getChatBiResponse().getExecutionPolicy()
+        ) : null);
+        metadata.put("runtime", Map.of(
+                "mode", "agent-handler-chain",
+                "finishReason", ctx.getRuntimeMetadata().getOrDefault("finishReason", "unknown"),
+                "mock", ctx.getRuntimeMetadata().getOrDefault("mock", false)
         ));
         response.setMetadata(metadata);
         response.setCreatedAt(LocalDateTime.now());

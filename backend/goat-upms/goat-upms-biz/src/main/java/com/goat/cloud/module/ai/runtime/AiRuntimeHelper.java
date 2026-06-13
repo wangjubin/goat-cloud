@@ -10,11 +10,11 @@ import java.util.Locale;
 /**
  * Shared utility helpers for AI runtime services.
  */
-final class AiRuntimeHelper {
+public final class AiRuntimeHelper {
 
     private AiRuntimeHelper() {}
 
-    static boolean isMissingTable(RuntimeException ex) {
+    public static boolean isMissingTable(RuntimeException ex) {
         for (Throwable current = ex; current != null; current = current.getCause()) {
             String message = current.getMessage();
             if (message == null) {
@@ -29,7 +29,7 @@ final class AiRuntimeHelper {
         return false;
     }
 
-    static Long entityId(Object entity) {
+    public static Long entityId(Object entity) {
         if (entity instanceof AiDocument document) {
             return document.getDocumentId();
         }
@@ -42,7 +42,7 @@ final class AiRuntimeHelper {
         return null;
     }
 
-    static String firstText(String... values) {
+    public static String firstText(String... values) {
         for (String value : values) {
             if (StringUtils.hasText(value)) {
                 return value;
@@ -51,15 +51,15 @@ final class AiRuntimeHelper {
         return "";
     }
 
-    static String lower(String text) {
+    public static String lower(String text) {
         return text == null ? "" : text.toLowerCase(Locale.ROOT);
     }
 
-    static String asString(Object value) {
+    public static String asString(Object value) {
         return value == null ? null : String.valueOf(value);
     }
 
-    static Boolean toBoolean(Object value) {
+    public static Boolean toBoolean(Object value) {
         if (value instanceof Boolean bool) {
             return bool;
         }
@@ -69,7 +69,7 @@ final class AiRuntimeHelper {
         return Boolean.parseBoolean(String.valueOf(value));
     }
 
-    static Long toLong(Object value) {
+    public static Long toLong(Object value) {
         if (value == null) {
             return null;
         }
@@ -87,7 +87,7 @@ final class AiRuntimeHelper {
         }
     }
 
-    static Integer toInteger(Object value, Integer defaultValue) {
+    public static Integer toInteger(Object value, Integer defaultValue) {
         if (value == null) {
             return defaultValue;
         }
@@ -101,16 +101,16 @@ final class AiRuntimeHelper {
         }
     }
 
-    static int clamp(Integer value, int defaultValue, int min, int max) {
+    public static int clamp(Integer value, int defaultValue, int min, int max) {
         int safeValue = value == null ? defaultValue : value;
         return Math.max(min, Math.min(max, safeValue));
     }
 
-    static String normalizeText(String text) {
+    public static String normalizeText(String text) {
         return text == null ? "" : text.trim();
     }
 
-    static String preview(String text, int maxLength) {
+    public static String preview(String text, int maxLength) {
         if (!StringUtils.hasText(text)) {
             return "";
         }

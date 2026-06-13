@@ -5,8 +5,12 @@ import com.goat.cloud.module.ai.service.AiChunkingService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -23,6 +27,7 @@ public class AiChunkingServiceImpl implements AiChunkingService {
 
     private static final Pattern SENTENCE_END_PATTERN = Pattern.compile("[。！？.!?]+");
     private static final Pattern PARAGRAPH_PATTERN = Pattern.compile("\n\\s*\n");
+    private static final Pattern HEADING_PATTERN = Pattern.compile("^#{1,6}\\s+.+$", Pattern.MULTILINE);
 
     @Override
     public List<ChunkResult> chunkDocument(AiDocument document, String content, ChunkingStrategy strategy) {
@@ -34,7 +39,10 @@ public class AiChunkingServiceImpl implements AiChunkingService {
             case FIXED_SIZE -> chunkByFixedSize(content, DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP);
             case BY_SENTENCE -> chunkBySentence(content);
             case BY_PARAGRAPH -> chunkByParagraph(content);
-            case SEMANTIC -> chunkByFixedSize(content, DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP);
+            case SEMANTIC -> {
+                log.warn("Semantic chunking not implemented, falling back to fixed-size chunking");
+                yield chunkByFixedSize(content, DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP);
+            }
         };
     }
 
@@ -212,5 +220,55 @@ public class AiChunkingServiceImpl implements AiChunkingService {
         }
 
         return chunks;
+    }
+
+    /**
+     * 对切片结果进行内容去重
+     * 使用 SHA-256 哈希去除重复内容的切片
+     */
+    public List<ChunkResult> deduplicateChunks(List<ChunkResult> chunks) {
+        if (chunks == null || chunks.isEmpty()) {
+            return chunks;
+        }
+
+        Map<String, ChunkResult> seen = new LinkedHashMap<>();
+        List<ChunkResult> deduplicated = new ArrayList<>();
+
+        for (ChunkResult chunk : chunks) {
+            String hash = sha256Hex(chunk.content());
+            if (!seen.containsKey(hash)) {
+                seen.put(hash, chunk);
+                deduplicated.add(chunk);
+            }
+        }
+
+        int removed = chunks.size() - deduplicated.size();
+        if (removed > 0) {
+            log.debug("Deduplicated {} duplicate chunks", removed);
+        }
+
+        return deduplicated;
+    }
+
+    /**
+     * 计算内容的 SHA-256 哈希
+     */
+    public static String sha256Hex(String content) {
+        if (content == null || content.isEmpty()) {
+            return "";
+        }
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(content.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (Exception e) {
+            return String.valueOf(content.hashCode());
+        }
     }
 }

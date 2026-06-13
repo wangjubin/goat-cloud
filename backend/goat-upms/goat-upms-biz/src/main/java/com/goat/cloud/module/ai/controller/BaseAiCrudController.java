@@ -8,6 +8,7 @@ import com.goat.cloud.module.ai.model.request.AiPageQuery;
 import com.goat.cloud.module.ai.service.AiService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -40,12 +41,14 @@ public abstract class BaseAiCrudController<T> {
     }
 
     @PostMapping("/save")
+    @PreAuthorize("@pms.has('ai:config:save')")
     public ApiResponse<Void> save(@RequestBody @Valid T entity) {
         aiService.save(mapper, entity);
         return ApiResponse.success();
     }
 
     @PostMapping("/delete")
+    @PreAuthorize("@pms.has('ai:config:delete')")
     public ApiResponse<Void> delete(@RequestBody @Valid AiIdsRequest request) {
         aiService.delete(mapper, request.getIds());
         return ApiResponse.success();

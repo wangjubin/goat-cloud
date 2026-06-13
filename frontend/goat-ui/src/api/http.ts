@@ -14,7 +14,7 @@ export function createHttp(onUnauthorized: () => Promise<void>, onLogout: () => 
   instance.interceptors.request.use((config) => {
     const token = storage.getAccessToken()
     if (token) {
-      config.headers.Authorization = token
+      config.headers.Authorization = 'Bearer ' + token
     }
     return config
   })
@@ -28,7 +28,6 @@ export function createHttp(onUnauthorized: () => Promise<void>, onLogout: () => 
       if (payload?.code === 4010 || payload?.code === 4011) {
         return handleRefresh(instance, response.config, onUnauthorized, onLogout)
       }
-      ElMessage.error(payload?.message || 'Request failed')
       return Promise.reject(payload)
     },
     (error: AxiosError) => {

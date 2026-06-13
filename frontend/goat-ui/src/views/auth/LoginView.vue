@@ -31,15 +31,15 @@
           <p>请输入账号密码进入 Goat Cloud</p>
         </div>
 
-        <el-form :model="form" class="login-form" @submit.prevent="handleLogin">
-          <el-form-item>
+        <el-form ref="formRef" :model="form" :rules="rules" class="login-form" @submit.prevent="handleLogin">
+          <el-form-item prop="username">
             <el-input v-model="form.username" size="large" placeholder="用户名">
               <template #prefix>
                 <el-icon><User /></el-icon>
               </template>
             </el-input>
           </el-form-item>
-          <el-form-item>
+          <el-form-item prop="password">
             <el-input v-model="form.password" type="password" size="large" placeholder="密码" show-password>
               <template #prefix>
                 <el-icon><Lock /></el-icon>
@@ -69,27 +69,35 @@ import { ElMessage } from 'element-plus'
 import { Lock, User } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import type { FormInstance, FormRules } from 'element-plus'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const loading = ref(false)
 const remember = ref(true)
+const formRef = ref<FormInstance>()
 
 const form = reactive({
-  username: 'admin',
-  password: 'Admin@123456',
+  username: '',
+  password: '',
 })
 
+const rules: FormRules = {
+  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+}
+
 async function handleLogin() {
-  if (!form.username || !form.password) {
-    ElMessage.warning('请输入用户名和密码')
-    return
-  }
+  if (!formRef.value) return
+  await formRef.value.validate()
   loading.value = true
   try {
     await authStore.login(form)
     ElMessage.success('登录成功')
-    router.push('/dashboard')
+    await router.push('/dashboard')
+  } catch (e: unknown) {
+    const message = (e as { message?: string })?.message || '登录失败'
+    ElMessage.error(message)
   } finally {
     loading.value = false
   }

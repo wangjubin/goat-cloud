@@ -23,4 +23,5 @@ public class AiChatRequest {
     private BigDecimal temperature;
     private Boolean stream;
     private Map<String, Object> options;
+    private String apiKeyRef;
 }

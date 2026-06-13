@@ -10,6 +10,19 @@ import org.springframework.stereotype.Component;
 
 /**
  * @author wangjubin
+ *
+ * TODO: Data permission filtering is not yet implemented.
+ * This aspect sets the DataPermissionRuleContext, but no MyBatis interceptor reads it.
+ * To complete implementation:
+ * 1. Create DataPermissionInterceptor implementing org.apache.ibatis.plugin.Interceptor
+ * 2. In the interceptor, read DataPermissionContextHolder.get() to get the rule
+ * 3. Based on rule.getDataScope(), inject SQL WHERE clauses:
+ *    - ALL: no filter
+ *    - DEPT: WHERE dept_id = #{deptId}
+ *    - DEPT_AND_CHILDREN: WHERE dept_id IN (SELECT dept_id FROM sys_dept WHERE dept_id = #{deptId} OR FIND_IN_SET(#{deptId}, ancestors))
+ *    - SELF: WHERE create_by = #{userId}
+ *    - CUSTOM: WHERE dept_id IN (#{customDeptIds})
+ * 4. Register the interceptor in MybatisPlusConfig
  */
 @Slf4j
 @Aspect

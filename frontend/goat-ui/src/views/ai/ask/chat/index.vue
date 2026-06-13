@@ -158,7 +158,7 @@ import { User, Monitor, ChatDotRound, Promotion, Refresh } from '@element-plus/i
 import { ElMessage } from 'element-plus'
 import { chatBiStreamFetch, resumeChatBiSession } from '@/api/ai'
 import { fetchAiList } from '@/api/ai'
-import http from '@/api/http'
+import { http } from '@/api/client'
 import * as echarts from 'echarts'
 
 interface ChatMessage {

@@ -5,9 +5,12 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.goat.cloud.module.ai.entity.AiBillingRecord;
+import com.goat.cloud.module.ai.entity.AiConversationRecord;
 import com.goat.cloud.module.ai.entity.AiModelConfig;
 import com.goat.cloud.module.ai.mapper.AiBillingRecordMapper;
 import com.goat.cloud.module.ai.mapper.AiModelConfigMapper;
+import com.goat.cloud.module.ai.memory.ShortTermMessage;
+import com.goat.cloud.module.ai.memory.ShortTermMemoryStore;
 import com.goat.cloud.module.ai.model.request.AiChatRequest;
 import com.goat.cloud.module.ai.model.vo.AiChatMessage;
 import com.goat.cloud.module.ai.model.vo.AiChatResponse;
@@ -15,6 +18,7 @@ import com.goat.cloud.module.ai.model.vo.AiTokenUsageVO;
 import com.goat.cloud.module.ai.runtime.model.RagSearchHit;
 import com.goat.cloud.module.ai.runtime.model.RagSearchRequest;
 import com.goat.cloud.module.ai.runtime.model.RagSearchResponse;
+import com.goat.cloud.module.ai.service.AiConversationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.env.Environment;
 import org.springframework.http.MediaType;
@@ -35,12 +39,15 @@ import java.util.UUID;
 public class AiChatService {
 
     private static final int DEFAULT_RAG_TOP_K = 5;
+    private static final int DEFAULT_SHORT_TERM_WINDOW = 20;
 
     private final ObjectMapper objectMapper;
     private final Environment environment;
     private final AiModelConfigMapper modelConfigMapper;
     private final AiBillingRecordMapper billingRecordMapper;
     private final AiRagSearchService ragSearchService;
+    private final AiConversationService conversationService;
+    private final ShortTermMemoryStore shortTermMemoryStore;
 
     public AiChatResponse chat(AiChatRequest request) {
         AiChatRequest safeRequest = request == null ? new AiChatRequest() : request;
@@ -51,6 +58,25 @@ public class AiChatService {
         String userText = StringUtils.hasText(safeRequest.getMessage())
                 ? safeRequest.getMessage()
                 : latestUserText(safeRequest.getMessages());
+
+        // 加载短期记忆历史
+        int windowSize = AiRuntimeHelper.toInteger(options.get("shortTermWindow"), DEFAULT_SHORT_TERM_WINDOW);
+        List<ShortTermMessage> historyMessages = shortTermMemoryStore.loadHistory(conversationId, windowSize);
+
+        // 保存用户消息到短期记忆和持久化
+        if (StringUtils.hasText(userText)) {
+            shortTermMemoryStore.append(conversationId, "user", userText, windowSize);
+            try {
+                Long agentId = AiRuntimeHelper.toLong(options.get("agentId"));
+                Long userId = AiRuntimeHelper.toLong(options.get("userId"));
+                if (agentId != null && userId != null) {
+                    conversationService.getOrCreateConversation(conversationId, agentId, userId, userText);
+                    conversationService.saveMessage(conversationId, agentId, userId, "user", userText, null);
+                }
+            } catch (Exception ex) {
+                // 对话持久化失败不阻塞主流程
+            }
+        }
 
         AiModelConfig model = resolveModel(safeRequest);
         String provider = firstText(safeRequest.getProvider(), model == null ? null : model.getProvider(), "local-runtime");
@@ -75,7 +101,7 @@ public class AiChatService {
                 && StringUtils.hasText(model.getEndpoint())
                 && StringUtils.hasText(apiKey);
         ProviderResult providerResult = canCallProvider
-                ? callOpenAiCompatible(model, apiKey, systemPrompt, ragContext, userText, safeRequest)
+                ? callOpenAiCompatible(model, apiKey, systemPrompt, ragContext, userText, historyMessages, safeRequest)
                 : ProviderResult.skipped(missingProviderReason(model, apiKey));
 
         String answer = providerResult.success()
@@ -84,6 +110,20 @@ public class AiChatService {
         AiTokenUsageVO usage = providerResult.usage() == null
                 ? estimateUsage(systemPrompt + "\n" + ragContext + "\n" + userText, answer)
                 : providerResult.usage();
+
+        // 保存助手回复到短期记忆和持久化
+        if (StringUtils.hasText(answer)) {
+            shortTermMemoryStore.append(conversationId, "assistant", answer, windowSize);
+            try {
+                Long agentId = AiRuntimeHelper.toLong(options.get("agentId"));
+                Long userId = AiRuntimeHelper.toLong(options.get("userId"));
+                if (agentId != null && userId != null) {
+                    conversationService.saveMessage(conversationId, agentId, userId, "assistant", answer, null);
+                }
+            } catch (Exception ex) {
+                // 对话持久化失败不阻塞主流程
+            }
+        }
 
         AiChatResponse response = new AiChatResponse();
         response.setConversationId(conversationId);
@@ -101,12 +141,21 @@ public class AiChatService {
     }
 
     private ProviderResult callOpenAiCompatible(AiModelConfig model, String apiKey, String systemPrompt,
-                                                String ragContext, String userText, AiChatRequest request) {
+                                                String ragContext, String userText,
+                                                List<ShortTermMessage> historyMessages, AiChatRequest request) {
         try {
             List<Map<String, String>> messages = new ArrayList<>();
             messages.add(Map.of("role", "system", "content", systemPrompt));
             if (StringUtils.hasText(ragContext)) {
                 messages.add(Map.of("role", "system", "content", "Use these retrieved citations when relevant:\n" + ragContext));
+            }
+            // 注入历史消息（多轮对话上下文）
+            if (historyMessages != null && !historyMessages.isEmpty()) {
+                for (ShortTermMessage history : historyMessages) {
+                    if (StringUtils.hasText(history.getRole()) && StringUtils.hasText(history.getContent())) {
+                        messages.add(Map.of("role", history.getRole(), "content", history.getContent()));
+                    }
+                }
             }
             if (request.getMessages() != null && !request.getMessages().isEmpty()) {
                 for (AiChatMessage message : request.getMessages()) {

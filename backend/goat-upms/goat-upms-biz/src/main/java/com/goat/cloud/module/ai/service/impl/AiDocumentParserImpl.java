@@ -107,12 +107,12 @@ public class AiDocumentParserImpl implements AiDocumentParser {
     }
 
     private String parsePdf(byte[] content) {
-        log.info("PDF parsing not fully implemented, returning raw text extraction");
+        log.warn("PDF parsing uses basic text extraction. For full PDF support, add Apache PDFBox dependency.");
         return extractPdfText(content);
     }
 
     private String parseDocx(byte[] content) {
-        log.info("DOCX parsing not fully implemented, returning raw text extraction");
+        log.warn("DOCX parsing uses basic text extraction. For full DOCX support, add Apache POI dependency.");
         return extractDocxText(content);
     }
 

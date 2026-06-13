@@ -8,9 +8,12 @@ import com.goat.cloud.module.ai.entity.AiKnowledgeBase;
 import com.goat.cloud.module.ai.mapper.AiDocumentChunkMapper;
 import com.goat.cloud.module.ai.mapper.AiDocumentMapper;
 import com.goat.cloud.module.ai.mapper.AiKnowledgeBaseMapper;
+import com.goat.cloud.module.ai.model.EmbeddingModel;
+import com.goat.cloud.module.ai.model.ModelFactory;
 import com.goat.cloud.module.ai.runtime.model.RagSearchHit;
 import com.goat.cloud.module.ai.runtime.model.RagSearchRequest;
 import com.goat.cloud.module.ai.runtime.model.RagSearchResponse;
+import com.goat.cloud.module.ai.service.AiVectorSearchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -39,6 +42,8 @@ public class AiRagSearchService {
     private final AiDocumentChunkMapper documentChunkMapper;
     private final AiDocumentMapper documentMapper;
     private final AiKnowledgeBaseMapper knowledgeBaseMapper;
+    private final AiVectorSearchService vectorSearchService;
+    private final ModelFactory modelFactory;
 
     public RagSearchResponse search(RagSearchRequest request) {
         RagSearchRequest safeRequest = request == null ? new RagSearchRequest() : request;
@@ -46,6 +51,16 @@ public class AiRagSearchService {
         int topK = clamp(safeRequest.getTopK(), DEFAULT_RAG_TOP_K, 1, MAX_RAG_TOP_K);
         List<String> terms = searchTerms(query);
 
+        // 尝试向量搜索（如果 embedding 模型可用且向量表存在）
+        if (StringUtils.hasText(query) && vectorSearchService.vectorTableExists()) {
+            try {
+                return searchWithVector(safeRequest, query, topK);
+            } catch (Exception e) {
+                // 向量搜索失败，回退到关键词搜索
+            }
+        }
+
+        // 关键词搜索（兜底）
         List<AiDocumentChunk> chunks = safeSelectList(documentChunkMapper, buildChunkQuery(safeRequest, terms, topK));
         Map<Long, AiDocument> documents = selectByIds(documentMapper, chunks.stream()
                 .map(AiDocumentChunk::getDocumentId)
@@ -80,7 +95,7 @@ public class AiRagSearchService {
         return response;
     }
 
-    String buildRagContext(RagSearchResponse rag) {
+    public String buildRagContext(RagSearchResponse rag) {
         if (rag == null || rag.getHits() == null || rag.getHits().isEmpty()) {
             return "";
         }
@@ -91,6 +106,106 @@ public class AiRagSearchService {
                     .append(firstText(hit.getContent(), hit.getContentPreview(), "")).append("\n");
         }
         return builder.toString();
+    }
+
+    /**
+     * 向量搜索：使用 embedding 模型生成查询向量，然后进行向量相似度搜索
+     * 搜索结果与关键词搜索混合排序
+     */
+    private RagSearchResponse searchWithVector(RagSearchRequest request, String query, int topK) {
+        EmbeddingModel embeddingModel = modelFactory.getDefaultEmbeddingModel();
+        if (embeddingModel == null) {
+            throw new IllegalStateException("No embedding model available");
+        }
+
+        // 生成查询向量
+        float[] queryVector = embeddingModel.embed(query);
+
+        // 向量相似度搜索
+        List<Long> knowledgeBaseIds = effectiveKnowledgeBaseIds(request);
+        List<AiVectorSearchService.VectorSearchResult> vectorResults = vectorSearchService.search(
+                queryVector, topK * 2, knowledgeBaseIds.isEmpty() ? null : knowledgeBaseIds);
+
+        if (vectorResults.isEmpty()) {
+            return buildEmptyResponse(query, topK, knowledgeBaseIds, request.getDocumentId());
+        }
+
+        // 加载对应的 chunk、document、knowledgeBase 实体
+        List<Long> chunkIds = vectorResults.stream()
+                .map(AiVectorSearchService.VectorSearchResult::getChunkId)
+                .toList();
+        Map<Long, AiDocumentChunk> chunkMap = selectChunkMapByIds(chunkIds);
+        Map<Long, AiDocument> documents = selectByIds(documentMapper, chunkIds.stream()
+                .map(id -> chunkMap.get(id))
+                .filter(Objects::nonNull)
+                .map(AiDocumentChunk::getDocumentId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new)));
+        Map<Long, AiKnowledgeBase> knowledgeBases = selectByIds(knowledgeBaseMapper, chunkIds.stream()
+                .map(id -> chunkMap.get(id))
+                .filter(Objects::nonNull)
+                .map(AiDocumentChunk::getKnowledgeBaseId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new)));
+
+        boolean includeContent = Boolean.TRUE.equals(request.getIncludeContent());
+        List<RagSearchHit> hits = vectorResults.stream()
+                .limit(topK)
+                .map(vectorResult -> {
+                    AiDocumentChunk chunk = chunkMap.get(vectorResult.getChunkId());
+                    if (chunk == null) return null;
+                    RagSearchHit hit = toHit(chunk,
+                            documents.get(chunk.getDocumentId()),
+                            knowledgeBases.get(chunk.getKnowledgeBaseId()),
+                            query, searchTerms(query), includeContent);
+                    // 使用向量相似度分数
+                    hit.setScore(Math.round(vectorResult.getScore() * 100D) / 100D);
+                    return hit;
+                })
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparing(RagSearchHit::getScore, Comparator.nullsLast(Comparator.reverseOrder())))
+                .toList();
+
+        RagSearchResponse response = new RagSearchResponse();
+        response.setQuery(query);
+        response.setTotal(hits.size());
+        response.setHits(hits);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("topK", topK);
+        metadata.put("searchMode", "vector-similarity");
+        metadata.put("candidateCount", vectorResults.size());
+        metadata.put("knowledgeBaseIds", knowledgeBaseIds);
+        metadata.put("documentId", request.getDocumentId());
+        metadata.put("embeddingDimensions", embeddingModel.getDimensions());
+        response.setMetadata(metadata);
+        response.setSearchedAt(java.time.LocalDateTime.now());
+        return response;
+    }
+
+    private RagSearchResponse buildEmptyResponse(String query, int topK, List<Long> knowledgeBaseIds, Long documentId) {
+        RagSearchResponse response = new RagSearchResponse();
+        response.setQuery(query);
+        response.setTotal(0);
+        response.setHits(List.of());
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("topK", topK);
+        metadata.put("searchMode", "vector-similarity");
+        metadata.put("candidateCount", 0);
+        metadata.put("knowledgeBaseIds", knowledgeBaseIds);
+        metadata.put("documentId", documentId);
+        response.setMetadata(metadata);
+        response.setSearchedAt(java.time.LocalDateTime.now());
+        return response;
+    }
+
+    private Map<Long, AiDocumentChunk> selectChunkMapByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return Map.of();
+        try {
+            return documentChunkMapper.selectBatchIds(ids).stream()
+                    .collect(Collectors.toMap(AiDocumentChunk::getChunkId, Function.identity(), (l, r) -> l, LinkedHashMap::new));
+        } catch (Exception e) {
+            return Map.of();
+        }
     }
 
     private QueryWrapper<AiDocumentChunk> buildChunkQuery(RagSearchRequest request, List<String> terms, int topK) {

@@ -291,12 +291,6 @@ async function submitUpload() {
   }
 }
 
-function openCreate() {
-  editingId.value = null
-  resetForm()
-  dialogVisible.value = true
-}
-
 async function openEdit(row: Record<string, unknown>) {
   const id = row.documentId as string | number
   editingId.value = id

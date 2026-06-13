@@ -4,6 +4,7 @@ import com.goat.cloud.common.api.ApiResponse;
 import com.goat.cloud.common.api.PageResponse;
 import com.goat.cloud.module.system.model.query.UserPageQuery;
 import com.goat.cloud.module.system.model.request.AssignUserRolesRequest;
+import com.goat.cloud.module.system.model.request.ChangePasswordRequest;
 import com.goat.cloud.module.system.model.request.IdsRequest;
 import com.goat.cloud.module.system.model.request.ResetPasswordRequest;
 import com.goat.cloud.module.system.model.request.StatusChangeRequest;
@@ -81,6 +82,12 @@ public class UserController {
     @PreAuthorize("@pms.has('system:user:update')")
     public ApiResponse<Void> assignRoles(@RequestBody @Valid AssignUserRolesRequest request) {
         userService.assignRoles(request.getUserId(), request.getRoleIds());
+        return ApiResponse.success();
+    }
+
+    @PostMapping("/change-password")
+    public ApiResponse<Void> changePassword(@RequestBody @Valid ChangePasswordRequest request) {
+        userService.changeOwnPassword(request.getOldPassword(), request.getNewPassword());
         return ApiResponse.success();
     }
 }

@@ -158,25 +158,25 @@ public class AiMcpClientImpl implements AiMcpClient {
     }
 
     private ToolCallResult callStdioTool(AiMcpTool tool, Map<String, Object> parameters, long startTime) {
-        log.info("STDIO transport not fully implemented for tool: {}", tool.getToolCode());
+        log.warn("STDIO transport not supported for tool: {}", tool.getToolCode());
         return new ToolCallResult(
                 tool.getMcpToolId(),
                 tool.getToolCode(),
                 false,
                 null,
-                "STDIO transport not implemented",
+                "STDIO transport is not supported yet. Please use HTTP transport.",
                 System.currentTimeMillis() - startTime
         );
     }
 
     private ToolCallResult callSseTool(AiMcpTool tool, Map<String, Object> parameters, long startTime) {
-        log.info("SSE transport not fully implemented for tool: {}", tool.getToolCode());
+        log.warn("SSE transport not supported for tool: {}", tool.getToolCode());
         return new ToolCallResult(
                 tool.getMcpToolId(),
                 tool.getToolCode(),
                 false,
                 null,
-                "SSE transport not implemented",
+                "SSE transport is not supported yet. Please use HTTP transport.",
                 System.currentTimeMillis() - startTime
         );
     }

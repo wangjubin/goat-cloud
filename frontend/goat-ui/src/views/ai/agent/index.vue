@@ -158,24 +158,58 @@ interface AgentOption {
   code: string
 }
 
+interface SelectOption {
+  label: string
+  value: string | number
+}
+
+const modelOptions = ref<SelectOption[]>([])
+const promptOptions = ref<SelectOption[]>([])
+const toolOptions = ref<SelectOption[]>([])
+const knowledgeBaseOptions = ref<SelectOption[]>([])
+
 const columns: AiTableColumn[] = [
   { prop: 'agentName', label: '智能体名称', minWidth: 170 },
   { prop: 'agentCode', label: '智能体编码', minWidth: 140 },
-  { prop: 'modelId', label: '模型ID', width: 100 },
-  { prop: 'promptId', label: '提示词ID', width: 110 },
+  { prop: 'modelName', label: '模型', minWidth: 120 },
+  { prop: 'promptName', label: '提示词', minWidth: 120 },
   { prop: 'toolIds', label: '工具能力', minWidth: 150 },
   { prop: 'knowledgeBaseIds', label: '知识库', minWidth: 130 },
   { prop: 'status', label: '状态', width: 100, type: 'status' },
 ]
 
-const formFields: AiFormField[] = [
+const formFields = computed<AiFormField[]>(() => [
   { prop: 'agentName', label: '智能体名称', required: true },
   { prop: 'agentCode', label: '智能体编码', required: true },
   { prop: 'description', label: '描述', type: 'textarea', span: 24 },
-  { prop: 'modelId', label: '模型ID', type: 'number', defaultValue: 1 },
-  { prop: 'promptId', label: '提示词ID', type: 'number', defaultValue: 1 },
-  { prop: 'toolIds', label: '工具ID', placeholder: '例如 1,2,3' },
-  { prop: 'knowledgeBaseIds', label: '知识库ID', placeholder: '例如 1,2' },
+  {
+    prop: 'modelId',
+    label: '对话模型',
+    type: 'select',
+    options: modelOptions.value,
+    placeholder: '请选择对话模型',
+  },
+  {
+    prop: 'promptId',
+    label: '提示词模板',
+    type: 'select',
+    options: promptOptions.value,
+    placeholder: '请选择提示词模板',
+  },
+  {
+    prop: 'toolIds',
+    label: '工具能力',
+    type: 'multi-select',
+    options: toolOptions.value,
+    placeholder: '请选择工具',
+  },
+  {
+    prop: 'knowledgeBaseIds',
+    label: '知识库',
+    type: 'multi-select',
+    options: knowledgeBaseOptions.value,
+    placeholder: '请选择知识库',
+  },
   { prop: 'memoryConfig', label: '记忆配置 JSON', type: 'textarea', span: 24 },
   {
     prop: 'status',
@@ -189,7 +223,7 @@ const formFields: AiFormField[] = [
     ],
   },
   { prop: 'remark', label: '说明', type: 'textarea', span: 24 },
-]
+])
 
 const runForm = reactive({
   agentId: null as string | number | null,
@@ -402,7 +436,69 @@ function traceTitle(item: unknown) {
   return stringifyValue(record.name || record.step || record.type || record.status)
 }
 
-onMounted(loadAgents)
+onMounted(() => {
+  loadAgents()
+  loadModelOptions()
+  loadPromptOptions()
+  loadToolOptions()
+  loadKnowledgeBaseOptions()
+})
+
+async function loadModelOptions() {
+  try {
+    const result = await fetchAiList<Record<string, unknown>>('models')
+    modelOptions.value = result.map((item) => ({
+      label: `${item.modelName || item.name} (${item.modelCode || item.code || ''})`,
+      value: item.modelId || item.id,
+    }))
+  } catch (error) {
+    console.error('Failed to load models:', error)
+  }
+}
+
+async function loadPromptOptions() {
+  try {
+    const result = await fetchAiList<Record<string, unknown>>('prompts')
+    promptOptions.value = result.map((item) => ({
+      label: `${item.promptName || item.name} (${item.promptCode || item.code || ''})`,
+      value: item.promptId || item.id,
+    }))
+  } catch (error) {
+    console.error('Failed to load prompts:', error)
+  }
+}
+
+async function loadToolOptions() {
+  try {
+    const apiSkills = await fetchAiList<Record<string, unknown>>('api-skills')
+    const mcpTools = await fetchAiList<Record<string, unknown>>('mcp-tools')
+    const allTools = [
+      ...apiSkills.map((item) => ({
+        label: `[API] ${item.skillName || item.name}`,
+        value: item.apiSkillId || item.id,
+      })),
+      ...mcpTools.map((item) => ({
+        label: `[MCP] ${item.toolName || item.name}`,
+        value: item.mcpToolId || item.id,
+      })),
+    ]
+    toolOptions.value = allTools
+  } catch (error) {
+    console.error('Failed to load tools:', error)
+  }
+}
+
+async function loadKnowledgeBaseOptions() {
+  try {
+    const result = await fetchAiList<Record<string, unknown>>('knowledge-bases')
+    knowledgeBaseOptions.value = result.map((item) => ({
+      label: `${item.knowledgeBaseName || item.name}`,
+      value: item.knowledgeBaseId || item.id,
+    }))
+  } catch (error) {
+    console.error('Failed to load knowledge bases:', error)
+  }
+}
 </script>
 
 <style scoped>
