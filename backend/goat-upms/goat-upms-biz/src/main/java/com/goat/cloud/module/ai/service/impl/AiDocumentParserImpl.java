@@ -3,8 +3,15 @@ package com.goat.cloud.module.ai.service.impl;
 import com.goat.cloud.module.ai.entity.AiDocument;
 import com.goat.cloud.module.ai.service.AiDocumentParser;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.springframework.stereotype.Service;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
 
@@ -107,13 +114,33 @@ public class AiDocumentParserImpl implements AiDocumentParser {
     }
 
     private String parsePdf(byte[] content) {
-        log.warn("PDF parsing uses basic text extraction. For full PDF support, add Apache PDFBox dependency.");
-        return extractPdfText(content);
+        try (PDDocument document = Loader.loadPDF(content)) {
+            PDFTextStripper stripper = new PDFTextStripper();
+            String text = stripper.getText(document);
+            log.debug("Parsed PDF: {} pages, {} characters", document.getNumberOfPages(), text.length());
+            return text.trim();
+        } catch (Exception e) {
+            log.warn("PDF parsing with PDFBox failed, falling back to basic extraction: {}", e.getMessage());
+            return extractPdfText(content);
+        }
     }
 
     private String parseDocx(byte[] content) {
-        log.warn("DOCX parsing uses basic text extraction. For full DOCX support, add Apache POI dependency.");
-        return extractDocxText(content);
+        try (InputStream is = new ByteArrayInputStream(content);
+             XWPFDocument document = new XWPFDocument(is)) {
+            StringBuilder text = new StringBuilder();
+            for (XWPFParagraph paragraph : document.getParagraphs()) {
+                String paraText = paragraph.getText();
+                if (paraText != null && !paraText.isBlank()) {
+                    text.append(paraText).append("\n");
+                }
+            }
+            log.debug("Parsed DOCX: {} paragraphs, {} characters", document.getParagraphs().size(), text.length());
+            return text.toString().trim();
+        } catch (Exception e) {
+            log.warn("DOCX parsing with POI failed, falling back to basic extraction: {}", e.getMessage());
+            return extractDocxText(content);
+        }
     }
 
     private String stripMarkdownSyntax(String markdown) {

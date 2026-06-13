@@ -39,10 +39,7 @@ public class AiChunkingServiceImpl implements AiChunkingService {
             case FIXED_SIZE -> chunkByFixedSize(content, DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP);
             case BY_SENTENCE -> chunkBySentence(content);
             case BY_PARAGRAPH -> chunkByParagraph(content);
-            case SEMANTIC -> {
-                log.warn("Semantic chunking not implemented, falling back to fixed-size chunking");
-                yield chunkByFixedSize(content, DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP);
-            }
+            case SEMANTIC -> chunkBySemantic(content);
         };
     }
 
@@ -217,6 +214,58 @@ public class AiChunkingServiceImpl implements AiChunkingService {
                     currentChunkStart,
                     content.length()
             ));
+        }
+
+        return chunks;
+    }
+
+    /**
+     * 语义分块：基于标题检测 + 段落边界 + 句子边界
+     * 优先按标题分块，然后按段落，最后按句子
+     */
+    private List<ChunkResult> chunkBySemantic(String content) {
+        List<ChunkResult> chunks = new ArrayList<>();
+
+        // 第一步：按标题分割
+        String[] sections = content.split("(?=^#{1,6}\\s+)", Pattern.MULTILINE);
+
+        int chunkIndex = 0;
+        for (String section : sections) {
+            String trimmed = section.trim();
+            if (trimmed.isBlank()) continue;
+
+            // 如果段落足够小，直接作为一个 chunk
+            if (estimateTokenCount(trimmed) <= DEFAULT_CHUNK_SIZE) {
+                chunks.add(new ChunkResult(
+                        chunkIndex,
+                        "chunk-" + chunkIndex,
+                        trimmed,
+                        estimateTokenCount(trimmed),
+                        0,
+                        trimmed.length()
+                ));
+                chunkIndex++;
+                continue;
+            }
+
+            // 段落太大，按句子边界分割
+            List<ChunkResult> sectionChunks = chunkBySentence(trimmed);
+            for (ChunkResult sectionChunk : sectionChunks) {
+                chunks.add(new ChunkResult(
+                        chunkIndex,
+                        "chunk-" + chunkIndex,
+                        sectionChunk.content(),
+                        sectionChunk.tokenCount(),
+                        sectionChunk.startPosition(),
+                        sectionChunk.endPosition()
+                ));
+                chunkIndex++;
+            }
+        }
+
+        // 如果没有检测到标题，回退到段落分块
+        if (chunks.size() <= 1) {
+            return chunkByParagraph(content);
         }
 
         return chunks;
