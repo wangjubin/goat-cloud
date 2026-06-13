@@ -14,7 +14,9 @@ export function createHttp(onUnauthorized: () => Promise<void>, onLogout: () => 
   instance.interceptors.request.use((config) => {
     const token = storage.getAccessToken()
     if (token) {
-      config.headers.Authorization = 'Bearer ' + token
+      // Backend already prefixes the token with "Bearer "; strip it to avoid "Bearer Bearer ..." headers.
+      const raw = token.replace(/^Bearer\s+/i, '')
+      config.headers.Authorization = 'Bearer ' + raw
     }
     return config
   })

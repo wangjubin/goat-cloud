@@ -48,10 +48,12 @@ export const useAuthStore = defineStore('auth', {
       usePermissionStore().reset()
     },
     applyTokens(result: LoginResponse) {
-      this.accessToken = result.accessToken
-      this.refreshToken = result.refreshToken
-      storage.setAccessToken(result.accessToken)
-      storage.setRefreshToken(result.refreshToken)
+      // Strip the "Bearer " prefix the backend adds — the prefix is HTTP-header
+      // semantics, not part of the JWT. The request interceptor re-adds it.
+      this.accessToken = (result.accessToken || '').replace(/^Bearer\s+/i, '')
+      this.refreshToken = (result.refreshToken || '').replace(/^Bearer\s+/i, '')
+      storage.setAccessToken(this.accessToken)
+      storage.setRefreshToken(this.refreshToken)
     },
     applyProfile(result: LoginResponse) {
       useUserStore().setProfile(result.profile)
