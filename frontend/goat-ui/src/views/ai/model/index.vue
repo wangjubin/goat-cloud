@@ -305,7 +305,7 @@
               <el-input
                 v-model="form.apiKeyRef"
                 :type="showApiKey ? 'text' : 'password'"
-                placeholder="例如：sk-... 或 ENV:OPENAI_API_KEY"
+                placeholder="直接粘贴明文 sk-… · 或 ENV:NAME / PROP:path / ${name}"
                 clearable
               >
                 <template #append>
@@ -315,6 +315,24 @@
                   </el-button>
                 </template>
               </el-input>
+              <div class="model-form__hint">
+                <el-tag v-if="apiKeyRefMode === 'plain'" size="small" effect="plain" type="warning">
+                  明文模式 · 提交时自动按 VALUE: 存储
+                </el-tag>
+                <el-tag v-else-if="apiKeyRefMode === 'env'" size="small" effect="plain" type="success">
+                  环境变量
+                </el-tag>
+                <el-tag v-else-if="apiKeyRefMode === 'prop'" size="small" effect="plain" type="primary">
+                  Spring 配置
+                </el-tag>
+                <el-tag v-else-if="apiKeyRefMode === 'placeholder'" size="small" effect="plain" type="info">
+                  ${} 占位符
+                </el-tag>
+                <el-tag v-else-if="apiKeyRefMode === 'value'" size="small" effect="plain" type="info">
+                  VALUE: 字面值
+                </el-tag>
+                <span v-else class="model-form__hint-text">支持直接粘贴明文 Key,自动按字面值存储</span>
+              </div>
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -457,6 +475,40 @@ const form = reactive<Record<string, any>>({})
 const showApiKey = ref(false)
 const apiKeyVisible = reactive<Record<number, boolean>>({})
 
+/**
+ * 解析 apiKeyRef 的输入模式,用于在表单中显示提示标签。
+ *  - empty:    空
+ *  - plain:    明文(没有任何前缀,提交时自动补 VALUE:)
+ *  - env:      ENV:NAME
+ *  - prop:     PROP:path
+ *  - placeholder: ${name}
+ *  - value:    VALUE:xxx
+ */
+const apiKeyRefMode = computed<'empty' | 'plain' | 'env' | 'prop' | 'placeholder' | 'value'>(() => {
+  const raw = (form.apiKeyRef || '').trim()
+  if (!raw) return 'empty'
+  if (raw.startsWith('ENV:')) return 'env'
+  if (raw.startsWith('PROP:')) return 'prop'
+  if (raw.startsWith('${') && raw.endsWith('}')) return 'placeholder'
+  if (raw.startsWith('VALUE:')) return 'value'
+  return 'plain'
+})
+
+/**
+ * 把用户输入规范化成后端能解析的形式:
+ *  - 已经带前缀的(ENV:/PROP:/${}/VALUE:)原样返回
+ *  - 没有任何前缀的明文,自动补 VALUE: 前缀
+ *  - 空字符串返回空
+ */
+function normalizeApiKeyRef(raw: string | undefined | null): string {
+  if (!raw) return ''
+  const v = raw.trim()
+  if (!v) return ''
+  if (v.startsWith('ENV:') || v.startsWith('PROP:') || v.startsWith('VALUE:')) return v
+  if (v.startsWith('${') && v.endsWith('}')) return v
+  return `VALUE:${v}`
+}
+
 const providerOptions = computed(() => {
   const set = new Set<string>()
   records.value.forEach((m) => m.provider && set.add(m.provider))
@@ -581,6 +633,10 @@ async function submitForm() {
     const payload: Record<string, unknown> = {...form}
     if (Array.isArray(payload.capabilityTags)) {
       payload.capabilityTags = JSON.stringify(payload.capabilityTags)
+    }
+    // 用户直接粘贴明文(无前缀)时,自动补 VALUE: 前缀,后端会按字面值使用
+    if (typeof payload.apiKeyRef === 'string') {
+      payload.apiKeyRef = normalizeApiKeyRef(payload.apiKeyRef)
     }
     await saveAiResource('models', payload)
     ElMessage.success('保存成功')
@@ -954,10 +1010,15 @@ onMounted(loadData)
 }
 
 .model-form__hint {
-  margin-left: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
   font-size: 11px;
   color: var(--tc-text-secondary);
 }
+.model-form__hint-text { color: var(--tc-text-secondary); }
 
 .model-pagination {
   justify-content: flex-end;
