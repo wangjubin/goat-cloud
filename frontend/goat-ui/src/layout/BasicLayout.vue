@@ -1,63 +1,116 @@
 <template>
   <el-container class="layout-container">
-    <aside class="layout-aside">
+    <aside class="layout-aside" :class="{ collapsed: sidebarCollapsed }">
       <div class="layout-logo">
-        <span class="layout-logo-mark">T</span>
-        <span class="layout-logo-title">Goat Cloud</span>
+        <div class="logo-icon">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <rect width="28" height="28" rx="8" fill="url(#logo-gradient)" />
+            <path d="M8 10L14 7L20 10V18L14 21L8 18V10Z" stroke="white" stroke-width="1.5" fill="none"/>
+            <circle cx="14" cy="14" r="3" fill="white" fill-opacity="0.9"/>
+            <defs>
+              <linearGradient id="logo-gradient" x1="0" y1="0" x2="28" y2="28">
+                <stop stop-color="#6366f1"/>
+                <stop offset="1" stop-color="#8b5cf6"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <transition name="fade">
+          <span v-if="!sidebarCollapsed" class="logo-text">Goat Cloud</span>
+        </transition>
       </div>
+
       <el-scrollbar class="layout-menu-scroll">
         <el-menu
           :default-active="route.path"
           router
           unique-opened
           background-color="transparent"
-          text-color="#bfcbd9"
-          active-text-color="#ffffff"
+          text-color="var(--tc-menu-text)"
+          active-text-color="var(--tc-menu-text-active)"
           class="menu-panel"
         >
           <MenuNode v-for="item in visibleRoutes" :key="String(item.name)" :route="item" />
         </el-menu>
       </el-scrollbar>
+
+      <div class="layout-sidebar-footer">
+        <div class="sidebar-version" v-if="!sidebarCollapsed">
+          <span class="version-dot"></span>
+          <span>v1.0.0</span>
+        </div>
+      </div>
     </aside>
+
     <el-container class="layout-container-view">
       <header class="layout-header">
-        <div class="layout-header-left">
-          <el-button text class="header-icon" title="折叠菜单">
-            <el-icon><Fold /></el-icon>
+        <div class="header-left">
+          <el-button text class="collapse-btn" @click="sidebarCollapsed = !sidebarCollapsed">
+            <el-icon :size="20">
+              <component :is="sidebarCollapsed ? 'Expand' : 'Fold'" />
+            </el-icon>
           </el-button>
           <el-breadcrumb separator="/">
-            <el-breadcrumb-item>首页</el-breadcrumb-item>
-            <el-breadcrumb-item>{{ pageTitle }}</el-breadcrumb-item>
+            <el-breadcrumb-item :to="{ path: '/dashboard' }">首页</el-breadcrumb-item>
+            <el-breadcrumb-item v-if="route.path !== '/dashboard'">{{ pageTitle }}</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
-        <div class="layout-header-right">
-          <span class="user-name">{{ userStore.user?.nickname || 'Administrator' }}</span>
-          <span class="role-name">{{ userStore.roleCodes.join(', ') || 'SYSTEM_ADMIN' }}</span>
-          <el-button text class="header-icon" title="退出登录" @click="handleLogout">
-            <el-icon><SwitchButton /></el-icon>
+
+        <div class="header-right">
+          <el-button text class="header-action" title="通知">
+            <el-badge :value="3" :max="99">
+              <el-icon :size="20"><Bell /></el-icon>
+            </el-badge>
           </el-button>
+          <el-dropdown trigger="click" @command="handleCommand">
+            <div class="user-avatar-wrapper">
+              <div class="user-avatar">
+                {{ userInitial }}
+              </div>
+              <div class="user-info">
+                <span class="user-name">{{ userStore.user?.nickname || 'Admin' }}</span>
+                <span class="user-role">{{ userStore.roleCodes[0] || '管理员' }}</span>
+              </div>
+              <el-icon class="avatar-arrow"><ArrowDown /></el-icon>
+            </div>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="profile">
+                  <el-icon><User /></el-icon>
+                  个人中心
+                </el-dropdown-item>
+                <el-dropdown-item command="settings">
+                  <el-icon><Setting /></el-icon>
+                  系统设置
+                </el-dropdown-item>
+                <el-dropdown-item divided command="logout">
+                  <el-icon><SwitchButton /></el-icon>
+                  退出登录
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </header>
-      <nav class="layout-tags">
-        <RouterLink to="/dashboard" class="tag-item" :class="{ active: route.path === '/dashboard' }">Dashboard</RouterLink>
-        <RouterLink v-if="route.path !== '/dashboard'" :to="route.path" class="tag-item active">
-          {{ pageTitle }}
-        </RouterLink>
-      </nav>
+
       <main class="layout-main">
-        <RouterView />
+        <RouterView v-slot="{ Component }">
+          <transition name="page-fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </RouterView>
       </main>
     </el-container>
   </el-container>
 </template>
 
 <script setup lang="ts">
-import {computed} from 'vue'
-import {RouterLink, RouterView, useRoute, useRouter} from 'vue-router'
-import {Fold, SwitchButton} from '@element-plus/icons-vue'
-import {usePermissionStore} from '@/stores/permission'
-import {useUserStore} from '@/stores/user'
-import {useAuthStore} from '@/stores/auth'
+import { ref, computed } from 'vue'
+import { RouterView, useRoute, useRouter } from 'vue-router'
+import { Fold, Expand, Bell, User, Setting, SwitchButton, ArrowDown } from '@element-plus/icons-vue'
+import { usePermissionStore } from '@/stores/permission'
+import { useUserStore } from '@/stores/user'
+import { useAuthStore } from '@/stores/auth'
 import MenuNode from './components/MenuNode.vue'
 
 const route = useRoute()
@@ -66,12 +119,20 @@ const permissionStore = usePermissionStore()
 const userStore = useUserStore()
 const authStore = useAuthStore()
 
+const sidebarCollapsed = ref(false)
+
 const visibleRoutes = computed<any[]>(() => permissionStore.routes.filter((item) => item.meta?.visible !== false))
 const pageTitle = computed(() => String(route.meta.title || 'Dashboard'))
+const userInitial = computed(() => {
+  const name = userStore.user?.nickname || 'Admin'
+  return name.charAt(0).toUpperCase()
+})
 
-async function handleLogout() {
-  await authStore.logout()
-  router.push('/login')
+async function handleCommand(command: string) {
+  if (command === 'logout') {
+    await authStore.logout()
+    router.push('/login')
+  }
 }
 </script>
 
@@ -81,151 +142,230 @@ async function handleLogout() {
   background: var(--tc-bg);
 }
 
+/* ── Sidebar ── */
 .layout-aside {
-  width: 220px;
+  width: 240px;
   min-height: 100vh;
   background: var(--tc-menu-bg);
-  color: var(--tc-menu-text);
-  box-shadow: 2px 0 6px rgba(0, 21, 41, 0.35);
-  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 100;
+}
+
+.layout-aside.collapsed {
+  width: 64px;
 }
 
 .layout-logo {
-  height: 50px;
+  height: 64px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   padding: 0 16px;
-  color: #fff;
-  background: #002140;
-  overflow: hidden;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.layout-logo-mark {
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  display: grid;
-  place-items: center;
-  background: var(--tc-primary);
-  font-weight: 700;
+.logo-icon {
+  flex-shrink: 0;
 }
 
-.layout-logo-title {
+.logo-text {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
+  color: #fff;
   white-space: nowrap;
+  letter-spacing: -0.02em;
+}
+
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
 }
 
 .layout-menu-scroll {
-  height: calc(100vh - 50px);
+  flex: 1;
+  overflow: hidden;
 }
 
 .menu-panel {
-  border: none;
-  background: transparent;
+  border: none !important;
+  background: transparent !important;
+  padding: 8px;
 }
 
 .menu-panel :deep(.el-sub-menu__title),
 .menu-panel :deep(.el-menu-item) {
-  height: 48px;
-  line-height: 48px;
-  color: var(--tc-menu-text);
+  height: 42px;
+  line-height: 42px;
+  border-radius: 8px;
+  margin: 2px 0;
+  color: var(--tc-menu-text) !important;
+  transition: all 0.2s ease;
 }
 
 .menu-panel :deep(.el-sub-menu .el-menu) {
-  background: var(--tc-menu-sub) !important;
+  background: transparent !important;
 }
 
 .menu-panel :deep(.el-menu-item.is-active) {
-  background: var(--tc-menu-active) !important;
+  background: var(--tc-primary) !important;
   color: #fff !important;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 
 .menu-panel :deep(.el-menu-item:hover),
 .menu-panel :deep(.el-sub-menu__title:hover) {
-  background: rgba(64, 158, 255, 0.18) !important;
+  background: var(--tc-menu-hover) !important;
+  color: #fff !important;
 }
 
+.layout-sidebar-footer {
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sidebar-version {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 11px;
+}
+
+.version-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+}
+
+/* ── Main Container ── */
 .layout-container-view {
   min-width: 0;
   display: flex;
   flex-direction: column;
 }
 
+/* ── Header ── */
 .layout-header {
   height: var(--tc-top-height);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 15px 0 0;
-  background: #fff;
-  border-bottom: 1px solid var(--tc-border);
-  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
-  z-index: 10;
+  padding: 0 20px;
+  background: var(--tc-surface);
+  border-bottom: 1px solid var(--tc-border-light);
+  box-shadow: var(--tc-shadow-xs);
+  z-index: 50;
 }
 
-.layout-header-left,
-.layout-header-right {
+.header-left,
+.header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
-.header-icon {
-  width: 50px;
-  height: 50px;
-  border-radius: 0;
-  font-size: 18px;
+.collapse-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  color: var(--tc-text-secondary);
+  transition: all 0.2s ease;
 }
 
-.user-name {
-  color: #303133;
+.collapse-btn:hover {
+  background: var(--tc-border-light);
+  color: var(--tc-text);
+}
+
+.user-avatar-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-radius: var(--tc-radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.user-avatar-wrapper:hover {
+  background: var(--tc-border-light);
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--tc-primary-gradient);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
   font-size: 14px;
 }
 
-.role-name {
+.user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tc-text);
+  line-height: 1.2;
+}
+
+.user-role {
+  font-size: 11px;
+  color: var(--tc-text-secondary);
+  line-height: 1.2;
+}
+
+.avatar-arrow {
   color: var(--tc-subtle);
   font-size: 12px;
 }
 
-.layout-tags {
-  height: var(--tc-tags-height);
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 0 15px;
-  background: #fff;
-  border-bottom: 1px solid var(--tc-border);
+.header-action {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  color: var(--tc-text-secondary);
 }
 
-.tag-item {
-  height: 26px;
-  line-height: 24px;
-  padding: 0 15px;
-  border: 1px solid var(--tc-border);
-  border-radius: 2px;
-  color: #606266;
-  font-size: 12px;
-  text-decoration: none;
-  background: #fff;
+.header-action:hover {
+  background: var(--tc-border-light);
+  color: var(--tc-text);
 }
 
-.tag-item:hover {
-  color: var(--tc-primary);
-  border-color: #b3d8ff;
-  background: var(--tc-primary-soft);
-}
-
-.tag-item.active {
-  color: #fff;
-  background: var(--tc-primary);
-  border-color: var(--tc-primary);
-}
-
+/* ── Main Content ── */
 .layout-main {
   flex: 1;
   overflow: auto;
+  padding: 0;
+}
+
+/* ── Page Transitions ── */
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.page-fade-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.page-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 
 @media (max-width: 960px) {
@@ -234,13 +374,17 @@ async function handleLogout() {
   }
 
   .layout-aside {
-    width: 100%;
+    width: 100% !important;
     min-height: auto;
   }
 
   .layout-menu-scroll {
     height: auto;
     max-height: 260px;
+  }
+
+  .user-info {
+    display: none;
   }
 }
 </style>
