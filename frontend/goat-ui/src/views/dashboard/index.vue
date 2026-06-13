@@ -203,8 +203,8 @@ function formatDate(dateStr: string) {
 async function loadStats() {
   try {
     const [statsResult, overviewResult] = await Promise.all([
-      http.get<any, DashboardStats>('/ai/dashboard/stats'),
-      http.get<any, { modules: ModuleInfo[] }>('/ai/dashboard/overview'),
+      http.get<any, DashboardStats>('/dashboard/stats'),
+      http.get<any, { modules: ModuleInfo[] }>('/dashboard/overview'),
     ])
     stats.value = statsResult || {}
     modules.value = overviewResult?.modules || []

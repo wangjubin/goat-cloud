@@ -28,6 +28,9 @@ import com.goat.cloud.module.ai.runtime.model.RagSearchResponse;
 import com.goat.cloud.module.ai.runtime.model.RagSearchHit;
 import com.goat.cloud.module.ai.service.AiConversationService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -60,7 +63,13 @@ public class AiAgentService {
     private final AiChatService chatService;
     private final AiConversationService conversationService;
     private final ShortTermMemoryStore shortTermMemoryStore;
-    private final AgentChatChain agentChatChain;
+    private AgentChatChain agentChatChain;
+
+    @Lazy
+    @Autowired
+    public void setAgentChatChain(AgentChatChain agentChatChain) {
+        this.agentChatChain = agentChatChain;
+    }
 
     public AgentRunResponse runAgent(Long agentId, AgentRunRequest request) {
         if (agentId == null) {

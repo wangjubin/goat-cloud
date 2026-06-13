@@ -17,9 +17,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/**
- * @author wangjubin
- */
 @RestController
 @RequestMapping("/api/ai")
 @RequiredArgsConstructor

@@ -9,7 +9,9 @@ import com.goat.cloud.module.ai.mapper.AiConversationRecordMapper;
 import com.goat.cloud.module.ai.mapper.AiDocumentMapper;
 import com.goat.cloud.module.ai.mapper.AiKnowledgeBaseMapper;
 import com.goat.cloud.module.ai.mapper.AiModelConfigMapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -22,11 +24,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Dashboard 统计 API
- */
+@Slf4j
 @RestController
-@RequestMapping("/api/ai/dashboard")
+@RequestMapping("/api/dashboard")
 @RequiredArgsConstructor
 public class AiDashboardController {
 
@@ -38,72 +38,67 @@ public class AiDashboardController {
     private final AiConversationRecordMapper recordMapper;
 
     @GetMapping("/stats")
-    public ApiResponse<Map<String, Object>> stats() {
+    public ApiResponse<Object> stats() {
         Map<String, Object> stats = new LinkedHashMap<>();
+        try {
+            stats.put("modelCount", safeCount(modelConfigMapper));
+            stats.put("agentCount", safeCount(agentMapper));
+            stats.put("knowledgeBaseCount", safeCount(knowledgeBaseMapper));
+            stats.put("documentCount", safeCount(documentMapper));
+            stats.put("conversationCount", safeCount(conversationMapper));
+            stats.put("messageCount", safeCount(recordMapper));
 
-        // 基础统计
-        stats.put("modelCount", countNonNull(modelConfigMapper));
-        stats.put("agentCount", countNonNull(agentMapper));
-        stats.put("knowledgeBaseCount", countNonNull(knowledgeBaseMapper));
-        stats.put("documentCount", countNonNull(documentMapper));
-        stats.put("conversationCount", countNonNull(conversationMapper));
-        stats.put("messageCount", countNonNull(recordMapper));
-
-        // 今日统计
-        LocalDateTime todayStart = LocalDateTime.of(LocalDate.now(), LocalTime.MIN);
-        LocalDateTime todayEnd = LocalDateTime.of(LocalDate.now(), LocalTime.MAX);
-
-        stats.put("todayConversations", countToday(conversationMapper, todayStart, todayEnd));
-        stats.put("todayMessages", countToday(recordMapper, todayStart, todayEnd));
-
-        // 最近 7 天趋势
-        stats.put("dailyTrend", buildDailyTrend());
-
+            LocalDateTime todayStart = LocalDateTime.of(LocalDate.now(), LocalTime.MIN);
+            LocalDateTime todayEnd = LocalDateTime.of(LocalDate.now(), LocalTime.MAX);
+            stats.put("todayConversations", countConvBetween(todayStart, todayEnd));
+            stats.put("todayMessages", countRecordBetween(todayStart, todayEnd));
+            stats.put("dailyTrend", buildDailyTrend());
+        } catch (Exception e) {
+            log.error("Dashboard stats error", e);
+            putDefaults(stats);
+        }
         return ApiResponse.success(stats);
     }
 
     @GetMapping("/overview")
-    public ApiResponse<Map<String, Object>> overview() {
+    public ApiResponse<Object> overview() {
         Map<String, Object> overview = new LinkedHashMap<>();
-
         overview.put("platform", "Goat Cloud AI Platform");
         overview.put("version", "1.0.0");
         overview.put("modules", List.of(
-            Map.of("name", "Model Management", "status", "active", "count", countNonNull(modelConfigMapper)),
-            Map.of("name", "Agent Orchestration", "status", "active", "count", countNonNull(agentMapper)),
-            Map.of("name", "RAG Knowledge Base", "status", "active", "count", countNonNull(knowledgeBaseMapper)),
-            Map.of("name", "Document Processing", "status", "active", "count", countNonNull(documentMapper)),
-            Map.of("name", "Chat & Conversation", "status", "active", "count", countNonNull(conversationMapper))
+            Map.of("name", "Model Management", "status", "active", "count", safeCount(modelConfigMapper)),
+            Map.of("name", "Agent Orchestration", "status", "active", "count", safeCount(agentMapper)),
+            Map.of("name", "RAG Knowledge Base", "status", "active", "count", safeCount(knowledgeBaseMapper)),
+            Map.of("name", "Document Processing", "status", "active", "count", safeCount(documentMapper)),
+            Map.of("name", "Chat & Conversation", "status", "active", "count", safeCount(conversationMapper))
         ));
-
         return ApiResponse.success(overview);
     }
 
-    private long countNonNull(Object mapper) {
+    private long safeCount(com.baomidou.mybatisplus.core.mapper.BaseMapper<?> mapper) {
         try {
-            if (mapper instanceof com.baomidou.mybatisplus.core.mapper.BaseMapper<?> baseMapper) {
-                return baseMapper.selectCount(null);
-            }
+            return mapper.selectCount(new QueryWrapper<>());
         } catch (Exception e) {
-            // ignore
+            return 0;
         }
-        return 0;
     }
 
-    private long countToday(Object mapper, LocalDateTime start, LocalDateTime end) {
+    private long countConvBetween(LocalDateTime start, LocalDateTime end) {
         try {
-            if (mapper instanceof AiConversationMapper convMapper) {
-                return convMapper.selectCount(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AiConversation>()
-                        .between(AiConversation::getCreateTime, start, end));
-            }
-            if (mapper instanceof AiConversationRecordMapper recordMapper) {
-                return recordMapper.selectCount(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AiConversationRecord>()
-                        .between(AiConversationRecord::getCreateTime, start, end));
-            }
+            return conversationMapper.selectCount(
+                    new QueryWrapper<AiConversation>().between("create_time", start, end));
         } catch (Exception e) {
-            // ignore
+            return 0;
         }
-        return 0;
+    }
+
+    private long countRecordBetween(LocalDateTime start, LocalDateTime end) {
+        try {
+            return recordMapper.selectCount(
+                    new QueryWrapper<AiConversationRecord>().between("create_time", start, end));
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     private List<Map<String, Object>> buildDailyTrend() {
@@ -112,24 +107,24 @@ public class AiDashboardController {
             LocalDate date = LocalDate.now().minusDays(i);
             LocalDateTime dayStart = LocalDateTime.of(date, LocalTime.MIN);
             LocalDateTime dayEnd = LocalDateTime.of(date, LocalTime.MAX);
-
-            long conversations = 0;
-            long messages = 0;
-            try {
-                conversations = conversationMapper.selectCount(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AiConversation>()
-                        .between(AiConversation::getCreateTime, dayStart, dayEnd));
-                messages = recordMapper.selectCount(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AiConversationRecord>()
-                        .between(AiConversationRecord::getCreateTime, dayStart, dayEnd));
-            } catch (Exception e) {
-                // ignore
-            }
-
-            trend.add(Map.of(
-                    "date", date.toString(),
-                    "conversations", conversations,
-                    "messages", messages
-            ));
+            Map<String, Object> day = new LinkedHashMap<>();
+            day.put("date", date.toString());
+            day.put("conversations", countConvBetween(dayStart, dayEnd));
+            day.put("messages", countRecordBetween(dayStart, dayEnd));
+            trend.add(day);
         }
         return trend;
+    }
+
+    private void putDefaults(Map<String, Object> stats) {
+        stats.putIfAbsent("modelCount", 0L);
+        stats.putIfAbsent("agentCount", 0L);
+        stats.putIfAbsent("knowledgeBaseCount", 0L);
+        stats.putIfAbsent("documentCount", 0L);
+        stats.putIfAbsent("conversationCount", 0L);
+        stats.putIfAbsent("messageCount", 0L);
+        stats.putIfAbsent("todayConversations", 0L);
+        stats.putIfAbsent("todayMessages", 0L);
+        stats.putIfAbsent("dailyTrend", List.of());
     }
 }
