@@ -16,6 +16,7 @@
 - [AI 平台管理](#ai-平台管理)
 - [ChatBI 智能问数](#chatbi-智能问数)
 - [StateGraph 工作流](#stategraph-工作流)
+- [AI Provider 配置与降级说明](#ai-provider-配置与降级说明)
 - [数据库迁移](#数据库迁移)
 - [冒烟测试](#冒烟测试)
 - [License](#license)
@@ -305,6 +306,120 @@ goat-cloud/
 **SSE 实时流式输出:** 15s 心跳 / 120s 超时 / 客户端断开检测,事件类型覆盖 `node_start` / `node_complete` / `node_error` / `interrupt` / `complete` / `heartbeat`。
 
 **可视化编辑器:** SVG 拖拽式节点编排,支持条件边、DAG 拓扑、节点配置面板。
+
+---
+
+## AI Provider 配置与降级说明
+
+平台所有 LLM/Embedding 调用都通过模型管理页维护的 `AiModelConfig` 记录执行,其中 `apiKeyRef` 字段统一支持 **4 种解析语法**——这是平台与真实大模型对接的唯一入口。
+
+### `apiKeyRef` 解析规则
+
+`resolveApiKey()` 在 `AiChatService` / `AiChatStreamService` / `OpenAiChatModel` / `OpenAiEmbeddingModel` 四个类中逻辑一致:
+
+| 写法 | 解析方式 | 适用场景 |
+|------|---------|---------|
+| `ENV:NAME` | 查 `System.getenv("NAME")` | 生产部署,K8s/Docker 注入的密钥 |
+| `PROP:ai.openai.key` | 查 Spring `application*.yml` | 多环境配置,密钥随 profile 切换 |
+| `${OPENAI_API_KEY}` | Spring 占位符语法 | 兼容 Spring 标准风格 |
+| `VALUE:sk-xxx` | 直接使用字面值 | **仅限临时调试**——会进数据库 |
+| `OPENAI_API_KEY`(裸名) | 同时查 Spring 属性 + 系统环境变量 | 简单部署,默认推荐 |
+
+**只要任一渠道返回空字符串或 `null`,即视为解析失败**——平台不会抛 500,而是走下面的降级链路。
+
+### 优雅降级:本地规则回答
+
+当模型配置存在、端点存在、但 API Key 解析失败时,平台会返回一条**可解释的本地回答**而不是中断请求:
+
+```
+本地规则回答:当前未完成外部大模型调用,系统已基于 Goat Cloud AI 元数据和 RAG 检索生成可解释结果。
+降级原因:apiKeyRef did not resolve to an environment/property value。
+[可选] 检索到 N 个相关切片:
+  1. [citation-1] 切片预览...
+  2. [citation-2] 切片预览...
+未检索到可引用的知识库切片,请先导入文档、完成切片和向量化,或在请求中指定 knowledgeBaseId。
+```
+
+响应 `metadata` 字段会同时携带:
+
+```json
+{
+  "apiKeyRefConfigured": false,
+  "providerCall": "LOCAL_FALLBACK",
+  "fallbackReason": "apiKeyRef did not resolve to an environment/property value",
+  "rag": { "enabled": true, "hitCount": 3, "citations": [...] }
+}
+```
+
+前端可基于 `metadata.providerCall === "LOCAL_FALLBACK"` 显示降级提示横幅,让用户清楚知道当前没走真实模型。
+
+### 配置步骤
+
+**Step 1:把 API Key 注入运行环境**
+
+```bash
+# Linux / macOS
+export OPENAI_API_KEY=sk-proj-...
+export DEEPSEEK_API_KEY=sk-...
+
+# Windows PowerShell
+$env:OPENAI_API_KEY = "sk-proj-..."
+$env:DEEPSEEK_API_KEY = "sk-..."
+```
+
+也可以写到 `backend/goat-boot/src/main/resources/application-{profile}.yml`:
+
+```yaml
+ai:
+  openai:
+    api-key: sk-proj-...
+  deepseek:
+    api-key: sk-...
+```
+
+**Step 2:在模型管理页配置模型**
+
+| 字段 | 示例 |
+|------|------|
+| 模型名称 | DeepSeek 主力 |
+| 模型编码 | `deepseek-chat` |
+| 模型类型 | CHAT |
+| 厂商 | DeepSeek |
+| API 地址 | `https://api.deepseek.com/v1` |
+| **API Key Ref** | `ENV:DEEPSEEK_API_KEY` 或 `PROP:ai.deepseek.api-key` |
+| 能力 | chat / json / streaming |
+| 状态 | 启用 + 默认模型 |
+
+**Step 3:验证**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File backend\scripts\ai-runtime-smoke.ps1
+```
+
+成功指标:
+
+- HTTP 200,SSE 流式输出 token
+- 响应 `metadata.providerCall === "SUCCESS"`
+- 响应 `metadata.fallbackReason === null`
+- 账单表新增 `SUCCESS` 状态记录,Token 用量 > 0
+
+如果仍看到 `LOCAL_FALLBACK`,按下列顺序排查:
+
+1. 进程是否已重启——`export` 只对新启动的 JVM 生效
+2. `apiKeyRef` 前缀是否拼写正确(注意大小写)
+3. 密钥中是否含特殊字符需要转义
+4. 端点 URL 是否以 `/v1` 结尾,平台会自动补 `/chat/completions`
+
+### 常见 Provider 速查
+
+| 厂商 | 端点模板 | 推荐环境变量 | 模型编码示例 |
+|------|---------|-------------|-------------|
+| OpenAI | `https://api.openai.com/v1` | `OPENAI_API_KEY` | `gpt-4o-mini`、`gpt-4o` |
+| DeepSeek | `https://api.deepseek.com/v1` | `DEEPSEEK_API_KEY` | `deepseek-chat`、`deepseek-reasoner` |
+| 通义千问 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `DASHSCOPE_API_KEY` | `qwen-plus`、`qwen-turbo` |
+| 智谱 GLM | `https://open.bigmodel.cn/api/paas/v4` | `ZHIPUAI_API_KEY` | `glm-4-plus`、`glm-4-flash` |
+| 百度千帆 | `https://qianfan.baidubce.com/v2` | `QIANFAN_ACCESS_KEY` + `QIANFAN_SECRET_KEY` | `ernie-4.0-8k` |
+| Ollama(本地) | `http://localhost:11434/v1` | 无需密钥,`apiKeyRef` 留空或 `VALUE:ollama` | `llama3.1`、`qwen2` |
 
 ---
 
