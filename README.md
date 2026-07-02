@@ -33,7 +33,9 @@
 
 ### AI 运行时
 - **多模型适配**:OpenAI / DeepSeek / Anthropic / 通义 / 智谱 / Ollama 等,统一接口
-- **RAG 知识检索**:文档上传 → 解析(PDF/DOCX/MD/HTML)→ 语义切片 → 向量化 → 混合检索
+- **智能模型路由**:负载均衡(轮询/性能优先)、自动降级、健康监控、Fallback 链,`AiModelRouterImpl` 统一调度
+- **RAG 知识检索**:文档上传 → 解析(PDF/DOCX/MD/HTML)→ 4 种切片策略(固定/句子/段落/语义) → 向量化 → 混合检索
+- **内容安全护栏**:输入输出双向过滤,敏感词检测 + PII 脱敏(手机号/邮箱/身份证/银行卡)
 - **ChatBI 智能问数**:自然语言 → 意图识别 → Schema 召回 → NL2SQL → 人工确认 → 报告
 - **StateGraph 工作流**:SEQUENTIAL / DAG / PARALLEL 三种模式,11 种节点执行器
 - **MCP 协议**:HTTP/STDIO/SSE 三种传输,工具发现 + 健康检查
@@ -41,8 +43,10 @@
 
 ### 可观测
 - **执行轨迹追踪**:Plan/Traces 全程记录,断点恢复
-- **Token 计费**:逐请求用量与成本,多维统计
+- **请求日志追踪**:`ai_request_log` 表记录每次 AI 调用(Token/延迟/状态),支持按模型/用户/时间维度统计
+- **Token 计费**:逐请求用量与成本,多模型定价(GPT/Claude/国产模型),预算告警(1000/5000 CNY 阈值)
 - **MCP 连接日志**:状态/耗时/错误全量审计
+- **Dashboard 实时监控**:今日请求数/Token消耗/成本/成功率/平均延迟,后端实时聚合
 
 ### 人机协同
 - **Human-in-the-Loop**:SQL 执行前人工确认(批准/修改/拒绝/出图)
@@ -188,7 +192,7 @@ goat-cloud/
 ├── backend/                          # 后端 (Java 17 / Spring Boot 3)
 │   ├── pom.xml                       # 父 POM,聚合所有模块
 │   ├── docker-compose.yml            # PostgreSQL + Redis 一键启动
-│   ├── goat-boot/                    # 单体启动器 + Flyway 迁移 (15 个版本)
+│   ├── goat-boot/                    # 单体启动器 + Flyway 迁移 (17 个版本)
 │   ├── goat-auth/                    # 认证模块 (JWT / Session)
 │   ├── goat-common/                  # 公共库 (12 子模块)
 │   │   ├── goat-common-core/         #   通用响应 / 基础实体 / 异常
@@ -425,7 +429,7 @@ powershell -ExecutionPolicy Bypass -File backend\scripts\ai-runtime-smoke.ps1
 
 ## 数据库迁移
 
-Flyway 自动管理,共 15 个版本:
+Flyway 自动管理,共 17 个版本:
 
 | 版本 | 内容 |
 |------|------|
@@ -444,6 +448,8 @@ Flyway 自动管理,共 15 个版本:
 | `V13` | pgvector 向量索引支持 |
 | `V14` | AI 配置权限 |
 | `V15` | AI 对话持久化 |
+| `V16` | 会话记录模型统计字段(model_id / prompt_tokens / completion_tokens) |
+| `V17` | AI 请求日志表(ai_request_log + 索引) |
 
 所有迁移使用 `ON CONFLICT DO NOTHING / DO UPDATE` 保证幂等。
 
