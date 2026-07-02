@@ -66,7 +66,8 @@
               <el-empty v-if="messages.length === 0" description="暂无会话，输入问题开始体验 AI 助手。" />
               <div v-for="(message, index) in messages" :key="index" class="message-item" :class="message.role">
                 <div class="message-role">{{ message.role === 'user' ? '用户' : 'AI 助手' }}</div>
-                <div class="message-content">{{ message.content }}</div>
+                <div v-if="message.role === 'user'" class="message-content">{{ message.content }}</div>
+                <div v-else class="message-content markdown-body" v-html="renderMarkdown(message.content)"></div>
               </div>
             </div>
 
@@ -94,6 +95,7 @@
 import {onMounted, reactive, ref} from 'vue'
 import {fetchAiList, sendAiChat, type AiChatMessage} from '@/api/ai'
 import {fetchConversations, fetchConversationHistory, type AiConversation} from '@/api/ai'
+import { renderMarkdown } from '@/utils/markdown'
 
 interface OptionItem {
   label: string

@@ -107,6 +107,9 @@
         <el-form-item label="用户名" prop="username">
           <el-input v-model="form.username" :disabled="isEdit" placeholder="请输入用户名" maxlength="64" />
         </el-form-item>
+        <el-form-item v-if="!isEdit" label="密码" prop="password">
+          <el-input v-model="form.password" type="password" placeholder="留空则使用系统默认密码" show-password maxlength="64" />
+        </el-form-item>
         <el-form-item label="昵称" prop="nickname">
           <el-input v-model="form.nickname" placeholder="请输入昵称" maxlength="100" />
         </el-form-item>
@@ -219,6 +222,7 @@ interface UserForm {
   email: string
   status: CommonStatus
   remark: string
+  password?: string
 }
 
 const query = reactive<UserQuery>({
@@ -236,6 +240,7 @@ const emptyForm = (): UserForm => ({
   email: '',
   status: 'ENABLED',
   remark: '',
+  password: '',
 })
 
 const records = ref<UserItem[]>([])
@@ -339,11 +344,13 @@ async function submitForm() {
   try {
     const payload = {...form}
     if (isEdit.value) {
+      delete (payload as any).password
       await updateUser(payload)
       ElMessage.success('用户已更新')
     } else {
       await createUser(payload)
-      ElMessage.success('用户已新增，初始密码使用系统默认配置')
+      const pwdMsg = form.password ? `，初始密码为：${form.password}` : '，初始密码使用系统默认配置'
+      ElMessage.success(`用户已新增${pwdMsg}`)
     }
     formDialogVisible.value = false
     await loadData()
@@ -376,13 +383,16 @@ async function handleStatusChange(row: UserItem) {
 }
 
 async function handleResetPassword(row: UserItem) {
-  await ElMessageBox.confirm(`确认重置用户“${row.nickname || row.username}”的密码吗？`, '重置密码', {
+  await ElMessageBox.confirm(`确认重置用户"${row.nickname || row.username}"的密码吗？`, '重置密码', {
     type: 'warning',
     confirmButtonText: '重置',
     cancelButtonText: '取消',
   })
-  await resetUserPassword(row.userId)
-  ElMessage.success('密码已重置为系统默认初始密码')
+  const result = await resetUserPassword(row.userId)
+  ElMessageBox.alert(`密码已重置为：${result.newPassword}`, '重置成功', {
+    confirmButtonText: '确定',
+    type: 'success',
+  })
 }
 
 async function openAssignRoleDialog(row: UserItem) {

@@ -31,6 +31,12 @@ public class AiConversationRecord {
 
     private Integer tokenCount;
 
+    private Long modelId;
+
+    private Integer promptTokens;
+
+    private Integer completionTokens;
+
     private String status;
 
     private LocalDateTime createTime;

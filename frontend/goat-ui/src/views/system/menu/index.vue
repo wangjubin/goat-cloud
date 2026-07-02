@@ -30,7 +30,7 @@
         :data="filteredRecords"
         border
         row-key="menuId"
-        default-expand-all
+        :default-expand-all="!isFiltering"
         :tree-props="{ children: 'children' }"
       >
         <el-table-column prop="menuName" label="菜单名称" min-width="180" show-overflow-tooltip />
@@ -236,6 +236,9 @@ const parentOptions = computed(() => [
     children: removeMenuFromTree(records.value, form.menuId),
   },
 ])
+const isFiltering = computed(() => {
+  return query.menuName.trim() !== '' || query.permissionCode.trim() !== '' || query.status !== undefined
+})
 const filteredRecords = computed(() => filterMenus(records.value, query))
 
 const formRules: FormRules<MenuForm> = {

@@ -81,11 +81,20 @@
             </div>
             <div class="activity-item">
               <div class="activity-icon" style="background: var(--tc-warning-soft); color: var(--tc-warning);">
-                <el-icon><Timer /></el-icon>
+                <el-icon><TrendCharts /></el-icon>
               </div>
               <div class="activity-info">
-                <span class="activity-value">2.3s</span>
-                <span class="activity-label">平均响应</span>
+                <span class="activity-value">{{ stats.successRate?.toFixed(1) || '0' }}%</span>
+                <span class="activity-label">成功率</span>
+              </div>
+            </div>
+            <div class="activity-item">
+              <div class="activity-icon" style="background: var(--tc-primary-soft); color: var(--tc-primary);">
+                <el-icon><Cpu /></el-icon>
+              </div>
+              <div class="activity-info">
+                <span class="activity-value">{{ stats.avgLatencyMs || 0 }}ms</span>
+                <span class="activity-label">平均延迟</span>
               </div>
             </div>
           </div>
@@ -144,7 +153,7 @@ import { useUserStore } from '@/stores/user'
 import { http } from '@/api/client'
 import {
   Cpu, ChatDotRound, Collection, Document, TrendCharts, Setting,
-  ChatLineRound, Timer, Top, Bottom
+  ChatLineRound
 } from '@element-plus/icons-vue'
 
 const userStore = useUserStore()
@@ -158,6 +167,11 @@ interface DashboardStats {
   messageCount: number
   todayConversations: number
   todayMessages: number
+  todayRequests: number
+  todayTokens: number
+  todayCost: number
+  successRate: number
+  avgLatencyMs: number
   dailyTrend: Array<{ date: string; conversations: number; messages: number }>
 }
 
@@ -171,19 +185,29 @@ const stats = ref<Partial<DashboardStats>>({})
 const modules = ref<ModuleInfo[]>([])
 
 const statsCards = computed(() => [
-  { title: 'AI 模型', value: stats.value.modelCount || 0, icon: Cpu, color: '#6366f1', gradient: 'linear-gradient(135deg, #6366f1, #8b5cf6)', trend: 12 },
-  { title: '智能体', value: stats.value.agentCount || 0, icon: ChatDotRound, color: '#ec4899', gradient: 'linear-gradient(135deg, #ec4899, #f472b6)', trend: 8 },
-  { title: '知识库', value: stats.value.knowledgeBaseCount || 0, icon: Collection, color: '#06b6d4', gradient: 'linear-gradient(135deg, #06b6d4, #22d3ee)', trend: 5 },
-  { title: '文档数', value: stats.value.documentCount || 0, icon: Document, color: '#10b981', gradient: 'linear-gradient(135deg, #10b981, #34d399)', trend: 15 },
+  { title: 'AI 模型', value: stats.value.modelCount || 0, icon: Cpu, color: '#6366f1', gradient: 'linear-gradient(135deg, #6366f1, #8b5cf6)' },
+  { title: '今日请求', value: stats.value.todayRequests || 0, icon: TrendCharts, color: '#ec4899', gradient: 'linear-gradient(135deg, #ec4899, #f472b6)' },
+  { title: 'Token消耗', value: formatNumber(stats.value.todayTokens || 0), icon: Collection, color: '#06b6d4', gradient: 'linear-gradient(135deg, #06b6d4, #22d3ee)' },
+  { title: '今日成本', value: `¥${(stats.value.todayCost || 0).toFixed(2)}`, icon: Document, color: '#10b981', gradient: 'linear-gradient(135deg, #10b981, #34d399)' },
 ])
+
+function formatNumber(num: number): string {
+  if (num >= 10000) {
+    return (num / 10000).toFixed(1) + 'w'
+  }
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1) + 'k'
+  }
+  return num.toString()
+}
 
 const quickActions = [
   { label: '新建对话', path: '/ai/chat', icon: ChatDotRound, gradient: 'linear-gradient(135deg, #6366f1, #8b5cf6)' },
   { label: 'AI 模型', path: '/ai/models', icon: Cpu, gradient: 'linear-gradient(135deg, #ec4899, #f472b6)' },
-  { label: '知识库', path: '/ai/knowledge', icon: Collection, gradient: 'linear-gradient(135deg, #06b6d4, #22d3ee)' },
+  { label: '知识库', path: '/ai/rag/knowledge', icon: Collection, gradient: 'linear-gradient(135deg, #06b6d4, #22d3ee)' },
   { label: '智能体', path: '/ai/agents', icon: TrendCharts, gradient: 'linear-gradient(135deg, #10b981, #34d399)' },
-  { label: '工作流', path: '/ai/workflow', icon: Setting, gradient: 'linear-gradient(135deg, #f59e0b, #fbbf24)' },
-  { label: '文档管理', path: '/ai/documents', icon: Document, gradient: 'linear-gradient(135deg, #8b5cf6, #a78bfa)' },
+  { label: '工作流', path: '/ai/workflows', icon: Setting, gradient: 'linear-gradient(135deg, #f59e0b, #fbbf24)' },
+  { label: '文档管理', path: '/ai/rag/documents', icon: Document, gradient: 'linear-gradient(135deg, #8b5cf6, #a78bfa)' },
 ]
 
 const dailyTrend = computed(() => stats.value.dailyTrend || [])

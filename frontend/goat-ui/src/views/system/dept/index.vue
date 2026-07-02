@@ -22,7 +22,7 @@
         <el-button type="primary" v-permission="'system:dept:save'" @click="openCreateDialog">新增组织</el-button>
       </div>
 
-      <el-table v-loading="loading" :data="records" border row-key="deptId" default-expand-all :tree-props="{ children: 'children' }">
+      <el-table v-loading="loading" :data="records" border row-key="deptId" :tree-props="{ children: 'children' }">
         <el-table-column prop="deptName" label="组织名称" min-width="180" />
         <el-table-column prop="deptCode" label="组织编码" min-width="140" />
         <el-table-column prop="leader" label="负责人" min-width="120" />

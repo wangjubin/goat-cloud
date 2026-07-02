@@ -10,9 +10,11 @@ import com.goat.cloud.common.exception.BusinessException;
 import com.goat.cloud.module.system.entity.SysRole;
 import com.goat.cloud.module.system.entity.SysRoleDept;
 import com.goat.cloud.module.system.entity.SysRoleMenu;
+import com.goat.cloud.module.system.entity.SysUserRole;
 import com.goat.cloud.module.system.mapper.SysRoleDeptMapper;
 import com.goat.cloud.module.system.mapper.SysRoleMapper;
 import com.goat.cloud.module.system.mapper.SysRoleMenuMapper;
+import com.goat.cloud.module.system.mapper.SysUserRoleMapper;
 import com.goat.cloud.module.system.model.query.RolePageQuery;
 import com.goat.cloud.module.system.model.request.AssignRolePermissionsRequest;
 import com.goat.cloud.module.system.model.request.RoleSaveRequest;
@@ -36,6 +38,7 @@ public class RoleService {
     private final SysRoleMapper sysRoleMapper;
     private final SysRoleMenuMapper sysRoleMenuMapper;
     private final SysRoleDeptMapper sysRoleDeptMapper;
+    private final SysUserRoleMapper sysUserRoleMapper;
 
     public PageResponse<RolePageVO> page(RolePageQuery query) {
         Page<RolePageVO> page = new Page<>(query.getPageNum(), query.getPageSize());
@@ -77,6 +80,14 @@ public class RoleService {
     }
 
     public void delete(List<Long> ids) {
+        // 检查角色是否有关联用户
+        for (Long roleId : ids) {
+            long userCount = sysUserRoleMapper.selectCount(
+                    new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getRoleId, roleId));
+            if (userCount > 0) {
+                throw new BusinessException(4010, "该角色下还有 " + userCount + " 个用户，无法删除");
+            }
+        }
         sysRoleMapper.deleteByIds(ids);
     }
 

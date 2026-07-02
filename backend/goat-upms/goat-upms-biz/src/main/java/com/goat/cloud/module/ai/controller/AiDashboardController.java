@@ -9,6 +9,8 @@ import com.goat.cloud.module.ai.mapper.AiConversationRecordMapper;
 import com.goat.cloud.module.ai.mapper.AiDocumentMapper;
 import com.goat.cloud.module.ai.mapper.AiKnowledgeBaseMapper;
 import com.goat.cloud.module.ai.mapper.AiModelConfigMapper;
+import com.goat.cloud.module.ai.service.AiBillingService;
+import com.goat.cloud.module.ai.service.AiRequestLogService;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +38,8 @@ public class AiDashboardController {
     private final AiDocumentMapper documentMapper;
     private final AiConversationMapper conversationMapper;
     private final AiConversationRecordMapper recordMapper;
+    private final AiRequestLogService requestLogService;
+    private final AiBillingService billingService;
 
     @GetMapping("/stats")
     public ApiResponse<Object> stats() {
@@ -52,6 +56,18 @@ public class AiDashboardController {
             LocalDateTime todayEnd = LocalDateTime.of(LocalDate.now(), LocalTime.MAX);
             stats.put("todayConversations", countConvBetween(todayStart, todayEnd));
             stats.put("todayMessages", countRecordBetween(todayStart, todayEnd));
+            
+            // Get today's request log statistics
+            Map<String, Object> todayStats = requestLogService.getTimeRangeStats(todayStart, todayEnd);
+            stats.put("todayRequests", todayStats.getOrDefault("totalRequests", 0L));
+            stats.put("todayTokens", todayStats.getOrDefault("totalTokens", 0L));
+            stats.put("successRate", todayStats.getOrDefault("successRate", 0.0));
+            stats.put("avgLatencyMs", todayStats.getOrDefault("avgLatencyMs", 0L));
+            
+            // Get today's cost statistics
+            Map<String, Object> costStats = billingService.getCostStats(todayStart, todayEnd);
+            stats.put("todayCost", costStats.getOrDefault("totalCost", 0.0));
+            
             stats.put("dailyTrend", buildDailyTrend());
         } catch (Exception e) {
             log.error("Dashboard stats error", e);
@@ -66,11 +82,11 @@ public class AiDashboardController {
         overview.put("platform", "Goat Cloud AI Platform");
         overview.put("version", "1.0.0");
         overview.put("modules", List.of(
-            Map.of("name", "Model Management", "status", "active", "count", safeCount(modelConfigMapper)),
-            Map.of("name", "Agent Orchestration", "status", "active", "count", safeCount(agentMapper)),
-            Map.of("name", "RAG Knowledge Base", "status", "active", "count", safeCount(knowledgeBaseMapper)),
-            Map.of("name", "Document Processing", "status", "active", "count", safeCount(documentMapper)),
-            Map.of("name", "Chat & Conversation", "status", "active", "count", safeCount(conversationMapper))
+            Map.of("name", "模型管理", "status", "active", "count", safeCount(modelConfigMapper)),
+            Map.of("name", "智能体编排", "status", "active", "count", safeCount(agentMapper)),
+            Map.of("name", "RAG 知识库", "status", "active", "count", safeCount(knowledgeBaseMapper)),
+            Map.of("name", "文档处理", "status", "active", "count", safeCount(documentMapper)),
+            Map.of("name", "对话管理", "status", "active", "count", safeCount(conversationMapper))
         ));
         return ApiResponse.success(overview);
     }

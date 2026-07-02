@@ -92,6 +92,32 @@ public class AiConversationService {
     }
 
     /**
+     * 删除会话（软删除）
+     */
+    public void deleteConversation(String conversationId) {
+        AiConversation conversation = conversationMapper.selectById(conversationId);
+        if (conversation != null) {
+            conversation.setDeleted(1);
+            conversation.setUpdateTime(LocalDateTime.now());
+            conversationMapper.updateById(conversation);
+            log.info("Deleted conversation: {}", conversationId);
+        }
+    }
+
+    /**
+     * 更新会话标题
+     */
+    public void updateConversationTitle(String conversationId, String title) {
+        AiConversation conversation = conversationMapper.selectById(conversationId);
+        if (conversation != null) {
+            conversation.setTitle(truncate(title, 128));
+            conversation.setUpdateTime(LocalDateTime.now());
+            conversationMapper.updateById(conversation);
+            log.debug("Updated conversation title: {}", conversationId);
+        }
+    }
+
+    /**
      * 获取会话列表
      */
     public List<AiConversation> listConversations(Long agentId, Long userId, int pageNum, int pageSize) {

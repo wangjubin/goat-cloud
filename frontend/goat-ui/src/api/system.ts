@@ -89,7 +89,7 @@ export function changeUserStatus(id: number, status: CommonStatus) {
 }
 
 export function resetUserPassword(userId: number) {
-  return http.post<any, void>('/system/user/reset-password', {userId})
+  return http.post<any, { newPassword: string }>('/system/user/reset-password', { userId })
 }
 
 export function assignUserRoles(userId: number, roleIds: number[]) {

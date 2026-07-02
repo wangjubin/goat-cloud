@@ -24,4 +24,9 @@ public class UserCreateRequest {
     private String email;
     private CommonStatus status = CommonStatus.ENABLED;
     private String remark;
+    
+    /**
+     * 可选密码，如果不提供则使用系统默认初始密码
+     */
+    private String password;
 }

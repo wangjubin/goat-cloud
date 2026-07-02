@@ -58,9 +58,7 @@
 
         <div class="header-right">
           <el-button text class="header-action" title="通知">
-            <el-badge :value="3" :max="99">
-              <el-icon :size="20"><Bell /></el-icon>
-            </el-badge>
+            <el-icon :size="20"><Bell /></el-icon>
           </el-button>
           <el-dropdown trigger="click" @command="handleCommand">
             <div class="user-avatar-wrapper">
@@ -132,6 +130,10 @@ async function handleCommand(command: string) {
   if (command === 'logout') {
     await authStore.logout()
     router.push('/login')
+  } else if (command === 'profile') {
+    ElMessage.info('个人中心功能开发中')
+  } else if (command === 'settings') {
+    ElMessage.info('系统设置功能开发中')
   }
 }
 </script>

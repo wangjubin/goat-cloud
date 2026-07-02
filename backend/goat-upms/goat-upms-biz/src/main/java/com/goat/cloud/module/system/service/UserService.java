@@ -69,7 +69,11 @@ public class UserService {
         user.setStatus(request.getStatus());
         user.setSuperAdmin(Boolean.FALSE);
         user.setRemark(request.getRemark());
-        user.setPassword(passwordEncoder.encode(securityProperties.getInitialPassword()));
+        // 使用自定义密码或系统默认初始密码
+        String rawPassword = (request.getPassword() != null && !request.getPassword().isEmpty())
+                ? request.getPassword()
+                : securityProperties.getInitialPassword();
+        user.setPassword(passwordEncoder.encode(rawPassword));
         sysUserMapper.insert(user);
     }
 

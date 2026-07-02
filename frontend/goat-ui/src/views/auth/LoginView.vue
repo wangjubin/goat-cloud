@@ -48,7 +48,6 @@
           </el-form-item>
 
           <div class="login-options">
-            <el-checkbox v-model="remember">记住登录状态</el-checkbox>
             <span>安全会话由 Redis 托管</span>
           </div>
 
@@ -69,12 +68,12 @@ import { ElMessage } from 'element-plus'
 import { Lock, User } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { usePermissionStore } from '@/stores/permission'
 import type { FormInstance, FormRules } from 'element-plus'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const loading = ref(false)
-const remember = ref(true)
 const formRef = ref<FormInstance>()
 
 const form = reactive({
@@ -94,13 +93,30 @@ async function handleLogin() {
   try {
     await authStore.login(form)
     ElMessage.success('登录成功')
-    await router.push('/dashboard')
+    // Redirect to the first visible route instead of hardcoded /dashboard
+    const permissionStore = usePermissionStore()
+    const firstRoute = findFirstVisibleRoute(permissionStore.routes)
+    await router.push(firstRoute || '/dashboard')
   } catch (e: unknown) {
     const message = (e as { message?: string })?.message || '登录失败'
     ElMessage.error(message)
   } finally {
     loading.value = false
   }
+}
+
+function findFirstVisibleRoute(routes: any[]): string | null {
+  for (const route of routes) {
+    if (route.meta?.visible !== false && route.path) {
+      if (route.children && route.children.length > 0) {
+        const childRoute = findFirstVisibleRoute(route.children)
+        if (childRoute) return childRoute
+      } else {
+        return route.path
+      }
+    }
+  }
+  return null
 }
 </script>
 
